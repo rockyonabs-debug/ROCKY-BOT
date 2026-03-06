@@ -1,0 +1,14 @@
+{
+  "name": "rocky-bot",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@abstract-foundation/agw-client": "^1.11.0",
+    "ethers": "^6.16.0",
+    "node-fetch": "^3.3.2",
+    "viem": "^2.47.0"
+  }
+}
