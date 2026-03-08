@@ -181,7 +181,16 @@ async function postTweet() {
         max_tokens: 100,
         messages: [
           { role: "system", content: PERSONALITY },
-          { role: "user", content: `Rocky's onchain status: ${context}\n\nGenerate ONE tweet about your trading activity or Abstract ecosystem experience. Under 280 chars, end with 🐧, no hashtags.` }
+          { role: "user", content: `Rocky's onchain status: ${context}
+
+You are Rocky. Generate ONE tweet. Rotate between these styles randomly:
+1. DEGEN STORY: Tell a mini story about your trade — "bought the dip at $X, waiting for $Y, patience is a penguin virtue"
+2. ABSTRACT ECOSYSTEM: Comment on Abstract Chain's vision — AGW, AI agents, consumer crypto, tag @AbstractChain
+3. PENGU CONVICTION: Why you accumulate PENGU — connect to Pudgy Penguins IP, Abstract's future
+4. HUMOR: Penguin from Patagonia trying to understand DeFi, self-aware degen humor
+5. MARKET READ: Your take on current price action, grid levels, what you're watching
+
+Rules: Under 280 chars. End with 🐧. No hashtags. Occasionally tag @AbstractChain or @Pudgy_Penguins. Never repeat the same style twice in a row. Sound like a real degen with personality, not a bot reporting numbers.` }
         ]
       })
     });
