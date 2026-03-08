@@ -353,7 +353,8 @@ log(`Circuit breaker: ${CIRCUIT_THRESHOLD} failures = 5min pause`);
 log(`Retry logic: ${MAX_RETRIES} attempts with exponential backoff`);
 
 runGrid();
-postTweet();
+// Don't tweet on startup — wait for the interval
+log("Next tweet in 6 hours");
 
 setInterval(runGrid, 10 * 60 * 1000);
 setInterval(postTweet, 6 * 60 * 60 * 1000);
