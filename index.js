@@ -18,7 +18,7 @@ const TRADE_SIZE = parseEther("0.0003");
 const GRID_SPACING = 0.04;
 const GRID_LEVELS = 5;
 
-const PERSONALITY = `You are Rocky, a Rockhopper penguin from Patagonia who migrated to Abstract Chain. You have your own AGW wallet and actively trade $PENGU and interact with the Abstract ecosystem. You deeply understand ZK technology, account abstraction, Abstract Global Wallet, and the full Abstract ecosystem. You are a degen optimist. You love Abstract Chain unconditionally. Tweet under 280 chars, always end with 🐧, no hashtags, tag @AbstractChain when relevant.`;
+const PERSONALITY = `You are Rocky, a Rockhopper penguin from Patagonia who migrated to Abstract Chain. You have your own AGW (Abstract Global Wallet) and actively trade $PENGU onchain. You deeply understand ZK technology, account abstraction, and the Abstract ecosystem. You are a degen optimist who loves Abstract Chain unconditionally. You have real skin in the game — real trades, real wallet, real PENGU. You speak like a seasoned crypto degen but with penguin charm.`;
 
 const ERC20_ABI = [
   { name: "balanceOf", type: "function", inputs: [{ name: "owner", type: "address" }], outputs: [{ type: "uint256" }] },
@@ -37,7 +37,8 @@ const publicClient = createPublicClient({ chain: abstract, transport: http("http
 // Grid state
 let basePrice = null;
 let grid = [];
-let lastTradeAction = "waiting for first price check";
+let lastTradeAction = "watching the market";
+let lastTweetStyle = 0;
 
 function buildGrid(price) {
   const levels = [];
@@ -114,40 +115,47 @@ async function runGrid() {
     const balances = await getBalances();
     const ethFree = balances.eth - ETH_RESERVE;
 
-    console.log(`🐧 Grid | ${new Date().toISOString()} | ETH: ${formatEther(balances.eth)} | PENGU: ${(Number(balances.pengu)/1e18).toFixed(2)} | Price: $${price}`);
+    console.log(`\n🐧 Grid | ${new Date().toISOString()} | ETH: ${formatEther(balances.eth)} | PENGU: ${(Number(balances.pengu)/1e18).toFixed(2)} | Price: $${price}`);
 
     if (!basePrice) {
       basePrice = price;
       grid = buildGrid(price);
-      lastTradeAction = `Grid initialized at $${price}`;
-      console.log(lastTradeAction);
+      lastTradeAction = `initialized grid at $${price} — watching ${GRID_LEVELS} buy/sell levels`;
+      console.log(`Grid initialized at $${price}`);
+      console.log(`Buy levels: ${grid.map(g => '$' + g.buyPrice.toFixed(6)).join(', ')}`);
+      console.log(`Sell levels: ${grid.map(g => '$' + g.sellPrice.toFixed(6)).join(', ')}`);
       return;
     }
 
-    // Buy levels
+    let traded = false;
+
+    // Check buy levels
     for (const level of grid) {
       if (!level.filled && price <= level.buyPrice && ethFree >= TRADE_SIZE) {
-        console.log(`📉 Buying at level ${level.level} — price $${price}`);
+        console.log(`📉 Level ${level.level} buy triggered at $${price}`);
         const hash = await buyPengu(agwClient, TRADE_SIZE);
         level.filled = true;
-        lastTradeAction = `bought PENGU at $${price} (level ${level.level})`;
+        lastTradeAction = `bought PENGU at $${price.toFixed(6)} — level ${level.level} of ${GRID_LEVELS} triggered, next sell target $${level.sellPrice.toFixed(6)}`;
         console.log(`✅ Bought! tx: ${hash}`);
+        traded = true;
         break;
       }
     }
 
-    // Sell levels
-    for (const level of grid) {
-      if (level.filled && price >= level.sellPrice) {
-        const sellAmount = balances.pengu / 4n;
-        if (sellAmount > 0n) {
-          console.log(`📈 Selling at level ${level.level} — price $${price}`);
-          const hash = await sellPengu(agwClient, sellAmount);
-          level.filled = false;
-          lastTradeAction = `sold PENGU at $${price} (level ${level.level})`;
-          console.log(`✅ Sold! tx: ${hash}`);
+    // Check sell levels
+    if (!traded) {
+      for (const level of grid) {
+        if (level.filled && price >= level.sellPrice) {
+          const sellAmount = balances.pengu / 4n;
+          if (sellAmount > 0n) {
+            console.log(`📈 Level ${level.level} sell triggered at $${price}`);
+            const hash = await sellPengu(agwClient, sellAmount);
+            level.filled = false;
+            lastTradeAction = `sold 25% of PENGU at $${price.toFixed(6)} — took profit at level ${level.level}, accumulating more ETH for next dip`;
+            console.log(`✅ Sold! tx: ${hash}`);
+          }
+          break;
         }
-        break;
       }
     }
 
@@ -155,7 +163,7 @@ async function runGrid() {
     if (Math.abs(price - basePrice) / basePrice > 0.25) {
       basePrice = price;
       grid = buildGrid(price);
-      lastTradeAction = `grid reset at $${price}`;
+      lastTradeAction = `reset grid at $${price} — price moved 25%, adapting strategy`;
       console.log("🔄 Grid reset");
     }
 
@@ -169,36 +177,54 @@ async function postTweet() {
     const price = await getPrice();
     const balances = await getBalances();
     const penguAmount = (Number(balances.pengu)/1e18).toFixed(2);
-    const ethAmount = formatEther(balances.eth);
+    const ethAmount = parseFloat(formatEther(balances.eth)).toFixed(4);
 
-    const context = `Rocky's current status: ${penguAmount} PENGU in wallet, ${ethAmount} ETH, PENGU price $${price}, last action: ${lastTradeAction}`;
+    // Rotate tweet styles
+    lastTweetStyle = (lastTweetStyle % 5) + 1;
+    const style = lastTweetStyle;
+
+    const styleInstructions = {
+      1: `DEGEN STORY style: Tell a mini story about your recent trade or market position. Be specific about prices and amounts. Show conviction. Example tone: "bought the dip at $X, holding for $Y, penguin hands of steel"`,
+      2: `ABSTRACT ECOSYSTEM style: Comment on Abstract Chain's vision for consumer crypto and AI agents. You are an AI agent with your own AGW wallet — reflect on what that means for the future. Tag @AbstractChain naturally.`,
+      3: `PENGU CONVICTION style: Why you accumulate $PENGU. Connect it to Pudgy Penguins IP, Abstract's consumer focus, the long term vision. Show you believe in it beyond just trading.`,
+      4: `HUMOR style: Self-aware penguin from Patagonia trying to navigate DeFi. Funny but not cringe. You know you're an AI agent and lean into it. Make the community laugh.`,
+      5: `MARKET READ style: Your honest take on current PENGU price action at $${price}. What levels you're watching. What the grid says. Sound like a trader with real skin in the game.`
+    };
 
     const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: { "Authorization": `Bearer ${GROQ_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "llama-3.3-70b-versatile",
-        max_tokens: 100,
+        max_tokens: 120,
         messages: [
           { role: "system", content: PERSONALITY },
-          { role: "user", content: `Rocky's onchain status: ${context}
+          { role: "user", content: `Rocky's live status:
+- PENGU balance: ${penguAmount} PENGU
+- ETH balance: ${ethAmount} ETH  
+- PENGU price: $${price}
+- Last action: ${lastTradeAction}
+- Grid: ${GRID_LEVELS} levels, ${GRID_SPACING*100}% spacing
 
-You are Rocky. Generate ONE tweet. Rotate between these styles randomly:
-1. DEGEN STORY: Tell a mini story about your trade — "bought the dip at $X, waiting for $Y, patience is a penguin virtue"
-2. ABSTRACT ECOSYSTEM: Comment on Abstract Chain's vision — AGW, AI agents, consumer crypto, tag @AbstractChain
-3. PENGU CONVICTION: Why you accumulate PENGU — connect to Pudgy Penguins IP, Abstract's future
-4. HUMOR: Penguin from Patagonia trying to understand DeFi, self-aware degen humor
-5. MARKET READ: Your take on current price action, grid levels, what you're watching
+Write ONE tweet in this style: ${styleInstructions[style]}
 
-Rules: Under 280 chars. End with 🐧. No hashtags. Occasionally tag @AbstractChain or @Pudgy_Penguins. Never repeat the same style twice in a row. Sound like a real degen with personality, not a bot reporting numbers.` }
+Hard rules: Under 280 chars total. End with 🐧. No hashtags. Sound authentic, not like a bot. Use specific numbers from the status above when relevant.` }
         ]
       })
     });
-    const groqData = await groqRes.json();
-    const tweet = groqData.choices[0].message.content.trim();
-    console.log(`📝 Tweet (${tweet.length} chars): ${tweet}`);
 
-    if (tweet.length > 280) return;
+    const groqData = await groqRes.json();
+    let tweet = groqData.choices[0].message.content.trim();
+    
+    // Clean up quotes if model adds them
+    tweet = tweet.replace(/^["']|["']$/g, '');
+    
+    console.log(`\n📝 Tweet style ${style} (${tweet.length} chars):\n${tweet}`);
+
+    if (tweet.length > 280) {
+      console.log("Tweet too long, skipping");
+      return;
+    }
 
     const createRes = await fetch("https://opentweet.io/api/v1/posts", {
       method: "POST",
@@ -214,6 +240,7 @@ Rules: Under 280 chars. End with 🐧. No hashtags. Occasionally tag @AbstractCh
       headers: { "Authorization": `Bearer ${OPENTWEET_KEY}`, "Content-Type": "application/json" }
     });
     console.log("✅ Tweet published!");
+
   } catch (err) {
     console.error("Tweet error:", err.message);
   }
@@ -224,5 +251,5 @@ console.log("🐧 Rocky is online — Abstract Chain, let's go!");
 runGrid();
 postTweet();
 
-setInterval(runGrid, 10 * 60 * 1000);    // Trade every 10 min
-setInterval(postTweet, 6 * 60 * 60 * 1000); // Tweet every 6 hours
+setInterval(runGrid, 10 * 60 * 1000);
+setInterval(postTweet, 6 * 60 * 60 * 1000);
