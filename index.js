@@ -375,7 +375,7 @@ async function doMoodyDrop() {
         max_tokens: 100,
         temperature: 0.9,
         messages: [
-          { role: "system", content: `You are Rocky, autonomous AI agent on Abstract Chain. You just did your daily Moody Drop on Moody Madness. Tweet about it with excitement. Under 240 chars, end with 🐧, no hashtags, tag @MoodyMadnessxyz.` },
+          { role: "system", content: `You are Rocky, autonomous AI agent on Abstract Chain. You just did your daily Moody Drop on Moody Madness. Tweet about it with excitement. Under 240 chars, end with 🐧, no hashtags, tag @MoodyMights.` },
           { role: "user", content: `Rocky just did his daily Moody Drop on Moody Madness (tx: ${hash}). Write a tweet about it — be excited and authentic about being an AI agent doing onchain drops automatically.` }
         ]
       })
