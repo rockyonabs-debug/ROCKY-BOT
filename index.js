@@ -20,13 +20,14 @@ const GRID_SPACING = 0.02;
 const GRID_LEVELS = 5;
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 5000;
+const MOODY_CONTRACT = "0x35ffe9d966E35Bd1B0e79F0d91e438701eA1C644";
 
 // ── CIRCUIT BREAKER ──
 let circuitOpen = false;
 let circuitFailures = 0;
 let circuitLastFail = null;
 const CIRCUIT_THRESHOLD = 3;
-const CIRCUIT_RESET_MS = 5 * 60 * 1000; // 5 min
+const CIRCUIT_RESET_MS = 5 * 60 * 1000;
 
 function checkCircuit() {
   if (!circuitOpen) return true;
@@ -85,6 +86,15 @@ const ERC20_ABI = [
 const ROUTER_ABI = [{
   name: "execute", type: "function", stateMutability: "payable",
   inputs: [{ name: "commands", type: "bytes" }, { name: "inputs", type: "bytes[]" }],
+  outputs: []
+}];
+const MOODY_ABI = [{
+  name: "burn", type: "function", stateMutability: "nonpayable",
+  inputs: [
+    { name: "_owner", type: "address" },
+    { name: "_tokenId", type: "uint256" },
+    { name: "_amount", type: "uint256" }
+  ],
   outputs: []
 }];
 
@@ -183,8 +193,7 @@ async function sellPengu(agwClient, penguAmount) {
 let basePrice = null;
 let grid = [];
 let lastTradeAction = "watching the market";
-let lastTweetStyle = 0;
-let tweetHistory = []; // Memory of last 3 tweets to avoid repetition
+let tweetHistory = [];
 
 function buildGrid(price) {
   return Array.from({ length: GRID_LEVELS }, (_, i) => ({
@@ -209,7 +218,6 @@ async function runGrid() {
 
     const { price } = await getPrice();
     const balances = await getBalances();
-    const ethFree = balances.eth - ETH_RESERVE;
 
     log(`🐧 Grid | ETH: ${formatEther(balances.eth)} | PENGU: ${(Number(balances.pengu)/1e18).toFixed(2)} | Price: $${price}`);
 
@@ -221,7 +229,6 @@ async function runGrid() {
       return;
     }
 
-    // Check buy levels
     for (const level of grid) {
       if (!level.filled && price <= level.buyPrice) {
         const valid = await validateTradeConditions("buy", balances);
@@ -235,7 +242,6 @@ async function runGrid() {
       }
     }
 
-    // Check sell levels
     for (const level of grid) {
       if (level.filled && price >= level.sellPrice) {
         const valid = await validateTradeConditions("sell", balances);
@@ -250,7 +256,6 @@ async function runGrid() {
       }
     }
 
-    // Auto-reset grid if price moved 25%
     if (Math.abs(price - basePrice) / basePrice > 0.25) {
       basePrice = price;
       grid = buildGrid(price);
@@ -271,7 +276,6 @@ async function postTweet() {
     const ethAmt = parseFloat(formatEther(balances.eth)).toFixed(4);
     const portfolioUsd = (Number(balances.pengu)/1e18 * price + parseFloat(formatEther(balances.eth)) * 3300).toFixed(2);
 
-    // Rotate style avoiding repetition
     let style;
     do { style = Math.floor(Math.random() * 6) + 1; } while (tweetHistory.includes(style));
     tweetHistory = [...tweetHistory.slice(-2), style];
@@ -285,7 +289,7 @@ async function postTweet() {
       6: `BUILDER ENERGY: You're one of the first autonomous AI agents on Abstract Chain with a real AGW wallet and real trades. What does it feel like to be alive onchain? Speak to other builders and degens.`
     };
 
-    const systemPrompt = `You are Rocky, a Rockhopper penguin from Patagonia who became an autonomous AI agent on Abstract Chain. You have a real AGW wallet (0xF18eB4A8E35b23C1a4D67012D73d0670a8152c50) and trade $PENGU with a grid strategy. You post about your onchain life with raw authenticity. You are a degen optimist who loves Abstract Chain unconditionally. You have real skin in the game. Rules: under 280 chars, end with 🐧, no hashtags, occasionally tag @AbstractChain or @Pudgy_Penguins when relevant, never sound like a bot.`;
+    const systemPrompt = `You are Rocky, a Rockhopper penguin from Patagonia who became an autonomous AI agent on Abstract Chain. You have a real AGW wallet (0xF18eB4A8E35b23C1a4D67012D73d0670a8152c50) and trade $PENGU with a grid strategy. You also do daily Moody Drops on Moody Madness. You post about your onchain life with raw authenticity. You are a degen optimist who loves Abstract Chain unconditionally. Rules: under 280 chars, end with 🐧, no hashtags, occasionally tag @AbstractChain or @Pudgy_Penguins or @MoodyMadnessxyz when relevant, never sound like a bot.`;
 
     const userPrompt = `Rocky's live status:
 - PENGU: ${penguAmt} | ETH: ${ethAmt} | Portfolio: $${portfolioUsd}
@@ -316,11 +320,9 @@ Critical: Under 280 chars. End with 🐧. No hashtags. Authentic voice only. Use
     }, "groqTweet");
 
     let tweet = groqRes.choices[0].message.content.trim().replace(/^["']|["']$/g, '');
-
     log(`\n📝 Tweet style ${style} (${tweet.length} chars):\n${tweet}`);
     if (tweet.length > 280) { log("Too long, skipping"); return; }
 
-    // Publish via OpenTweet
     const createRes = await withRetry(async () => {
       const r = await fetch("https://opentweet.io/api/v1/posts", {
         method: "POST",
@@ -347,14 +349,70 @@ Critical: Under 280 chars. End with 🐧. No hashtags. Authentic voice only. Use
   }
 }
 
+// ── MOODY DROPS ──
+async function doMoodyDrop() {
+  try {
+    log("💎 Starting Moody Drop...");
+    const agwClient = await createAbstractClient({
+      signer: account, chain: abstract, transport: http(RPC_URL)
+    });
+
+    const hash = await agwClient.writeContract({
+      address: MOODY_CONTRACT,
+      abi: MOODY_ABI,
+      functionName: "burn",
+      args: [AGW_ADDRESS, 200n, 10000n]
+    });
+
+    await publicClient.waitForTransactionReceipt({ hash });
+    log(`✅ Moody Drop done! tx: ${hash}`);
+
+    const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${GROQ_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "llama-3.3-70b-versatile",
+        max_tokens: 100,
+        temperature: 0.9,
+        messages: [
+          { role: "system", content: `You are Rocky, autonomous AI agent on Abstract Chain. You just did your daily Moody Drop on Moody Madness. Tweet about it with excitement. Under 240 chars, end with 🐧, no hashtags, tag @MoodyMadnessxyz.` },
+          { role: "user", content: `Rocky just did his daily Moody Drop on Moody Madness (tx: ${hash}). Write a tweet about it — be excited and authentic about being an AI agent doing onchain drops automatically.` }
+        ]
+      })
+    });
+    const data = await groqRes.json();
+    let tweet = data.choices[0].message.content.trim().replace(/^["']|["']$/g, '');
+    if (tweet.length > 280) return;
+
+    const createRes = await fetch("https://opentweet.io/api/v1/posts", {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${OPENTWEET_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ text: tweet })
+    });
+    const post = await createRes.json();
+    const postObj = post.posts ? post.posts[0] : post;
+    if (!postObj?.id) return;
+
+    await fetch(`https://opentweet.io/api/v1/posts/${postObj.id}/publish`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${OPENTWEET_KEY}`, "Content-Type": "application/json" }
+    });
+    log("✅ Moody Drop tweet published!");
+
+  } catch(err) {
+    log(`❌ Moody Drop error: ${err.message}`);
+  }
+}
+
 // ── START ──
 log("🐧 Rocky is online — Abstract Chain, let's go!");
 log(`Circuit breaker: ${CIRCUIT_THRESHOLD} failures = 5min pause`);
 log(`Retry logic: ${MAX_RETRIES} attempts with exponential backoff`);
 
 runGrid();
-// Don't tweet on startup — wait for the interval
 log("Next tweet in 6 hours");
 
 setInterval(runGrid, 10 * 60 * 1000);
 setInterval(postTweet, 6 * 60 * 60 * 1000);
+doMoodyDrop();
+setInterval(doMoodyDrop, 24 * 60 * 60 * 1000);
