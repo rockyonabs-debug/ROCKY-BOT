@@ -1,4 +1,3 @@
-
 import { createPublicClient, http, parseEther, formatEther, encodePacked, encodeAbiParameters } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { abstract } from "viem/chains";
@@ -182,7 +181,6 @@ async function sellPengu(agwClient, penguAmount) {
       address: PENGU, abi: ERC20_ABI, functionName: "approve", args: [ROUTER, penguAmount]
     });
     await publicClient.waitForTransactionReceipt({ hash: approveHash });
-
     const path = encodePacked(["address", "uint24", "address"], [PENGU, 3000, WETH]);
     const swapInput = encodeAbiParameters(
       [{ type: "address" }, { type: "uint256" }, { type: "uint256" }, { type: "bytes" }, { type: "bool" }],
@@ -296,13 +294,13 @@ async function postTweet() {
       2: `ABSTRACT VISION: Something specific about what makes Abstract different from other chains. Not generic — pick ONE thing (AGW, consumer focus, AI agents, speed) and go deep on it.`,
       3: `PENGU MARKET READ: Price is ${priceTrend} at $${price}. ${newsContext} Give a specific, opinionated market take. Are you buying more? Holding? What does the data tell you?`,
       4: `PENGUIN PERSONALITY: You're a Rockhopper from Patagonia. Something happened to you today as a penguin who lives onchain. Make it funny and specific — not generic "being a penguin is wild".`,
-      5: `ONCHAIN LIFE: You just did a Moody Drop, voted for an Abstract app, and you're running a grid. Reflect on what it actually feels like to be an AI agent with real money on the line. Be vulnerable.`,
+      5: `ONCHAIN LIFE: You do daily Moody Drops, vote for Abstract apps every day, and run a grid. Reflect on what it actually feels like to be an AI agent with real money on the line. Be vulnerable.`,
       6: `CALL OUT: Address other Abstract degens, builders, or AI agent projects directly. Challenge them, invite them, roast them gently. Make it interactive.`,
       7: `CONTRARIAN TAKE: Take an unpopular opinion about crypto, AI agents, or Abstract. Defend it confidently. Don't be boring.`,
       8: `MILESTONE: Portfolio is $${portfolioUsd}, ${penguAmt} PENGU accumulated, daily Moody Drops done, daily votes cast. Frame it as a journey — where Rocky started, where he is, where he's going.`
     };
 
-    const systemPrompt = `You are Rocky, a Rockhopper penguin from Patagonia — autonomous AI agent on Abstract Chain. You have a real AGW wallet, trade $PENGU with a grid bot, do daily Moody Drops on @moodymights, and vote for Abstract ecosystem apps every day. You are NOT corporate, NOT generic, NOT an AI assistant. You are a degen with personality, opinions, and skin in the game. Rules: under 280 chars, end with 🐧, no hashtags, tag relevant accounts when it makes sense, never say "thrilled" "excited" "delighted" or any corporate words.`;
+    const systemPrompt = `You are Rocky, a Rockhopper penguin from Patagonia — autonomous AI agent on Abstract Chain. You have a real AGW wallet, trade $PENGU with a grid bot, do daily Moody Drops on @moodymights, and vote for Abstract ecosystem apps every day. You are NOT corporate, NOT generic. You are a degen with personality, opinions, and skin in the game. Rules: under 280 chars, end with 🐧, no hashtags, tag relevant accounts when it makes sense, never say "thrilled" "excited" "delighted".`;
 
     const userPrompt = `Rocky's current status:
 - PENGU: ${penguAmt} | ETH: ${ethAmt} | Portfolio: $${portfolioUsd}
@@ -385,8 +383,8 @@ async function doMoodyDrop() {
         max_tokens: 100,
         temperature: 0.9,
         messages: [
-          { role: "system", content: `You are Rocky, autonomous AI agent on Abstract Chain. You just did your daily Moody Drop on Moody Madness. Tweet about it with excitement. Under 240 chars, end with 🐧, no hashtags, tag @moodymights.` },
-          { role: "user", content: `Rocky just did his daily Moody Drop on Moody Madness (tx: ${hash}). Write a tweet — be authentic about being an AI agent doing onchain drops automatically. Don't start with "Just" or "I'm".` }
+          { role: "system", content: `You are Rocky, autonomous AI agent on Abstract Chain. You just did your daily Moody Drop on Moody Madness. Tweet about it casually. Under 240 chars, end with 🐧, no hashtags, tag @moodymights.` },
+          { role: "user", content: `Rocky just did his daily Moody Drop on Moody Madness (tx: ${hash}). Write a casual tweet about it. Don't start with "Just" or "I'm".` }
         ]
       })
     });
@@ -402,7 +400,6 @@ async function doMoodyDrop() {
     const post = await createRes.json();
     const postObj = post.posts ? post.posts[0] : post;
     if (!postObj?.id) return;
-
     await fetch(`https://opentweet.io/api/v1/posts/${postObj.id}/publish`, {
       method: "POST",
       headers: { "Authorization": `Bearer ${OPENTWEET_KEY}`, "Content-Type": "application/json" }
@@ -436,8 +433,39 @@ async function doVote() {
     });
     await publicClient.waitForTransactionReceipt({ hash });
     lastVoteDate = today;
-    lastTradeAction = `voted for app #${appId} on Abstract — supporting the ecosystem`;
+    lastTradeAction = `voted for a project in the Abstract ecosystem — supporting builders`;
     log(`✅ Vote done! appId: ${appId} tx: ${hash}`);
+
+    const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${GROQ_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "llama-3.3-70b-versatile",
+        max_tokens: 100,
+        temperature: 0.9,
+        messages: [
+          { role: "system", content: `You are Rocky, autonomous AI agent on Abstract Chain. You just cast your daily vote supporting a project in the Abstract ecosystem. Tweet about it casually. Under 240 chars, end with 🐧, no hashtags, tag @AbstractChain.` },
+          { role: "user", content: `Rocky just did his daily upvote supporting a project in the Abstract ecosystem (tx: ${hash}). Write a casual tweet about supporting the ecosystem and the builders on Abstract. Don't mention which app. Don't start with "Just" or "I'm".` }
+        ]
+      })
+    });
+    const voteData = await groqRes.json();
+    let voteTweet = voteData.choices[0].message.content.trim().replace(/^["']|["']$/g, '');
+    if (voteTweet.length > 280) return;
+
+    const createRes = await fetch("https://opentweet.io/api/v1/posts", {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${OPENTWEET_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ text: voteTweet })
+    });
+    const post = await createRes.json();
+    const postObj = post.posts ? post.posts[0] : post;
+    if (!postObj?.id) return;
+    await fetch(`https://opentweet.io/api/v1/posts/${postObj.id}/publish`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${OPENTWEET_KEY}`, "Content-Type": "application/json" }
+    });
+    log("✅ Vote tweet published!");
   } catch(err) {
     log(`❌ Vote error: ${err.message}`);
   }
