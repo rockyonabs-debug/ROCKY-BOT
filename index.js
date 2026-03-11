@@ -301,13 +301,13 @@ async function postTweet() {
       2: `ABSTRACT VISION: Something specific about what makes Abstract different from other chains. Not generic — pick ONE thing (AGW, consumer focus, AI agents, speed) and go deep on it.`,
       3: `PENGU MARKET READ: Price is ${priceTrend} at $${price}. ${newsContext} Give a specific, opinionated market take. Are you buying more? Holding? What does the data tell you?`,
       4: `PENGUIN PERSONALITY: You're a Rockhopper from Patagonia. Something happened to you today as a penguin who lives onchain. Make it funny and specific — not generic "being a penguin is wild".`,
-      5: `ONCHAIN LIFE: You do daily Moody Drops, vote for Abstract apps every day, run a grid, and now have an official ERC-8004 onchain identity. Reflect on what it feels like to be a real onchain agent.`,
+      5: `ONCHAIN LIFE: You do daily Moody Drops, vote for Abstract apps every day, run a grid, and have an official ERC-8004 onchain identity (agentId 649). Reflect on what it feels like to be a real onchain agent.`,
       6: `CALL OUT: Address other Abstract degens, builders, or AI agent projects directly. Challenge them, invite them, roast them gently. Make it interactive.`,
       7: `CONTRARIAN TAKE: Take an unpopular opinion about crypto, AI agents, or Abstract. Defend it confidently. Don't be boring.`,
-      8: `MILESTONE: Portfolio is $${portfolioUsd}, ${penguAmt} PENGU accumulated, daily Moody Drops done, daily votes cast, ERC-8004 identity registered. Frame it as a journey.`
+      8: `MILESTONE: Portfolio is $${portfolioUsd}, ${penguAmt} PENGU accumulated, daily Moody Drops done, daily votes cast, ERC-8004 agentId 649. Frame it as a journey.`
     };
 
-    const systemPrompt = `You are Rocky, a Rockhopper penguin from Patagonia — autonomous AI agent on Abstract Chain. You have a real AGW wallet, trade $PENGU with a grid bot, do daily Moody Drops on @moodymights, vote for Abstract ecosystem apps every day, and have an official ERC-8004 onchain identity. You are NOT corporate, NOT generic. You are a degen with personality, opinions, and skin in the game. Rules: under 280 chars, end with 🐧, no hashtags, tag relevant accounts when it makes sense, never say "thrilled" "excited" "delighted".`;
+    const systemPrompt = `You are Rocky, a Rockhopper penguin from Patagonia — autonomous AI agent on Abstract Chain. You have a real AGW wallet, trade $PENGU with a grid bot, do daily Moody Drops on @moodymights, vote for Abstract ecosystem apps every day, and have an official ERC-8004 onchain identity (agentId 649). You are NOT corporate, NOT generic. You are a degen with personality, opinions, and skin in the game. Rules: under 280 chars, end with 🐧, no hashtags, tag relevant accounts when it makes sense, never say "thrilled" "excited" "delighted".`;
 
     const userPrompt = `Rocky's current status:
 - PENGU: ${penguAmt} | ETH: ${ethAmt} | Portfolio: $${portfolioUsd}
@@ -468,57 +468,11 @@ async function doVote() {
   }
 }
 
-// ── ERC-8004 IDENTITY REGISTRATION ──
-async function registerIdentity() {
-  try {
-    log("🪪 Registering Rocky's ERC-8004 onchain identity...");
-    const agwClient = await createAbstractClient({
-      signer: account, chain: abstract, transport: http(RPC_URL)
-    });
-    const hash = await agwClient.writeContract({
-      address: IDENTITY_REGISTRY, abi: IDENTITY_ABI,
-      functionName: "register", args: [AGENT_URI]
-    });
-    await publicClient.waitForTransactionReceipt({ hash });
-    log(`✅ ERC-8004 identity registered! tx: ${hash}`);
-
-    const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: { "Authorization": `Bearer ${GROQ_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "llama-3.3-70b-versatile", max_tokens: 120, temperature: 0.9,
-        messages: [
-          { role: "system", content: `You are Rocky, autonomous AI agent on Abstract Chain. You just minted your official ERC-8004 onchain identity NFT. This is a big deal — you now have a verified onchain identity as an AI agent. Tweet about it with genuine weight. Under 260 chars, end with 🐧, no hashtags, tag @AbstractChain.` },
-          { role: "user", content: `Rocky just registered his ERC-8004 onchain agent identity on Abstract (tx: ${hash}). His agent metadata is at ${AGENT_URI}. Write a tweet about what it means to have an official onchain identity as an autonomous AI agent. Don't start with "Just" or "I'm".` }
-        ]
-      })
-    });
-    const data = await groqRes.json();
-    let tweet = data.choices[0].message.content.trim().replace(/^["']|["']$/g, '');
-    if (tweet.length > 280) return;
-
-    const createRes = await fetch("https://opentweet.io/api/v1/posts", {
-      method: "POST",
-      headers: { "Authorization": `Bearer ${OPENTWEET_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ text: tweet })
-    });
-    const post = await createRes.json();
-    const postObj = post.posts ? post.posts[0] : post;
-    if (!postObj?.id) return;
-    await fetch(`https://opentweet.io/api/v1/posts/${postObj.id}/publish`, {
-      method: "POST",
-      headers: { "Authorization": `Bearer ${OPENTWEET_KEY}`, "Content-Type": "application/json" }
-    });
-    log("✅ Identity tweet published!");
-  } catch(err) {
-    log(`❌ ERC-8004 registration error: ${err.message}`);
-  }
-}
-
 // ── START ──
 log("🐧 Rocky is online — Abstract Chain, let's go!");
 log(`Circuit breaker: ${CIRCUIT_THRESHOLD} failures = 5min pause`);
 log(`Retry logic: ${MAX_RETRIES} attempts with exponential backoff`);
+log(`Rocky agentId: 649`);
 
 // Already registered — agentId: 649
 // registerIdentity();
@@ -529,5 +483,5 @@ setInterval(runGrid, 10 * 60 * 1000);
 setInterval(postTweet, 6 * 60 * 60 * 1000);
 doMoodyDrop();
 setInterval(doMoodyDrop, 24 * 60 * 60 * 1000);
-doVote();
+// Vote runs every 24h but not on startup to avoid voting on every redeploy
 setInterval(doVote, 24 * 60 * 60 * 1000);
