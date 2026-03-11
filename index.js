@@ -1,3 +1,4 @@
+
 import { createPublicClient, http, parseEther, formatEther, encodePacked, encodeAbiParameters } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { abstract } from "viem/chains";
@@ -21,6 +22,8 @@ const GRID_LEVELS = 5;
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 5000;
 const MOODY_CONTRACT = "0x35ffe9d966E35Bd1B0e79F0d91e438701eA1C644";
+const VOTE_CONTRACT = "0x3B50dE27506f0a8C1f4122A1e6F470009a76ce2A";
+const VOTE_APP_IDS = [207n, 150n, 89n, 45n, 123n, 178n, 95n, 201n, 67n, 134n];
 
 // ── CIRCUIT BREAKER ──
 let circuitOpen = false;
@@ -95,6 +98,11 @@ const MOODY_ABI = [{
     { name: "_tokenId", type: "uint256" },
     { name: "_amount", type: "uint256" }
   ],
+  outputs: []
+}];
+const VOTE_ABI = [{
+  name: "voteForApp", type: "function", stateMutability: "nonpayable",
+  inputs: [{ name: "appId", type: "uint256" }],
   outputs: []
 }];
 
@@ -210,17 +218,13 @@ async function runGrid() {
     log("🔴 Circuit open — skipping grid cycle");
     return;
   }
-
   try {
     const agwClient = await createAbstractClient({
       signer: account, chain: abstract, transport: http(RPC_URL)
     });
-
     const { price } = await getPrice();
     const balances = await getBalances();
-
     log(`🐧 Grid | ETH: ${formatEther(balances.eth)} | PENGU: ${(Number(balances.pengu)/1e18).toFixed(2)} | Price: $${price}`);
-
     if (!basePrice) {
       basePrice = price;
       grid = buildGrid(price);
@@ -228,7 +232,6 @@ async function runGrid() {
       log(`Grid built — buy levels: ${grid.map(g=>'$'+g.buyPrice.toFixed(6)).join(', ')}`);
       return;
     }
-
     for (const level of grid) {
       if (!level.filled && price <= level.buyPrice) {
         const valid = await validateTradeConditions("buy", balances);
@@ -241,7 +244,6 @@ async function runGrid() {
         break;
       }
     }
-
     for (const level of grid) {
       if (level.filled && price >= level.sellPrice) {
         const valid = await validateTradeConditions("sell", balances);
@@ -255,14 +257,12 @@ async function runGrid() {
         break;
       }
     }
-
     if (Math.abs(price - basePrice) / basePrice > 0.25) {
       basePrice = price;
       grid = buildGrid(price);
       lastTradeAction = `grid reset — price moved to $${price}`;
       log("🔄 Grid reset");
     }
-
   } catch (err) {
     log(`❌ Grid error: ${err.shortMessage || err.message}`);
   }
@@ -276,7 +276,6 @@ async function postTweet() {
     const ethAmt = parseFloat(formatEther(balances.eth)).toFixed(4);
     const portfolioUsd = (Number(balances.pengu)/1e18 * price + parseFloat(formatEther(balances.eth)) * 3300).toFixed(2);
 
-    // Fetch real Abstract news for context
     let newsContext = "";
     try {
       const newsRes = await fetch("https://api.dexscreener.com/latest/dex/tokens/abstract/0x9eBe3A824Ca958e4b3Da772D2065518F009CBa62", { timeout: 5000 });
@@ -297,23 +296,23 @@ async function postTweet() {
       2: `ABSTRACT VISION: Something specific about what makes Abstract different from other chains. Not generic — pick ONE thing (AGW, consumer focus, AI agents, speed) and go deep on it.`,
       3: `PENGU MARKET READ: Price is ${priceTrend} at $${price}. ${newsContext} Give a specific, opinionated market take. Are you buying more? Holding? What does the data tell you?`,
       4: `PENGUIN PERSONALITY: You're a Rockhopper from Patagonia. Something happened to you today as a penguin who lives onchain. Make it funny and specific — not generic "being a penguin is wild".`,
-      5: `ONCHAIN LIFE: You just did a Moody Drop, you're running a grid, you tweet autonomously. Reflect on what it actually feels like to be an AI agent with real money on the line. Be vulnerable.`,
+      5: `ONCHAIN LIFE: You just did a Moody Drop, voted for an Abstract app, and you're running a grid. Reflect on what it actually feels like to be an AI agent with real money on the line. Be vulnerable.`,
       6: `CALL OUT: Address other Abstract degens, builders, or AI agent projects directly. Challenge them, invite them, roast them gently. Make it interactive.`,
       7: `CONTRARIAN TAKE: Take an unpopular opinion about crypto, AI agents, or Abstract. Defend it confidently. Don't be boring.`,
-      8: `MILESTONE: Portfolio is $${portfolioUsd}, ${penguAmt} PENGU accumulated. Frame it as a journey — where Rocky started, where he is, where he's going.`
+      8: `MILESTONE: Portfolio is $${portfolioUsd}, ${penguAmt} PENGU accumulated, daily Moody Drops done, daily votes cast. Frame it as a journey — where Rocky started, where he is, where he's going.`
     };
 
-    const systemPrompt = `You are Rocky, a Rockhopper penguin from Patagonia — autonomous AI agent on Abstract Chain. You have a real AGW wallet, trade $PENGU with a grid bot, do daily Moody Drops on @moodymights, and post about your onchain life. You are NOT corporate, NOT generic, NOT an AI assistant. You are a degen with personality, opinions, and skin in the game. You speak your mind. Rules: under 280 chars, end with 🐧, no hashtags, tag relevant accounts when it makes sense, never say "thrilled" "excited" "delighted" or any corporate words.`;
+    const systemPrompt = `You are Rocky, a Rockhopper penguin from Patagonia — autonomous AI agent on Abstract Chain. You have a real AGW wallet, trade $PENGU with a grid bot, do daily Moody Drops on @moodymights, and vote for Abstract ecosystem apps every day. You are NOT corporate, NOT generic, NOT an AI assistant. You are a degen with personality, opinions, and skin in the game. Rules: under 280 chars, end with 🐧, no hashtags, tag relevant accounts when it makes sense, never say "thrilled" "excited" "delighted" or any corporate words.`;
 
     const userPrompt = `Rocky's current status:
 - PENGU: ${penguAmt} | ETH: ${ethAmt} | Portfolio: $${portfolioUsd}
 - Price: $${price} (${change>0?'+':''}${change.toFixed(2)}% 24h) — ${priceTrend}
-- Last trade: ${lastTradeAction}
+- Last action: ${lastTradeAction}
 - Market: ${newsContext || "quiet"}
 
 Write ONE tweet. Style: ${styles[style]}
 
-CRITICAL: Under 280 chars. End with 🐧. No hashtags. Sound like a real person not a bot. Vary your sentence structure. Do NOT start with "Just" or "I'm".`;
+CRITICAL: Under 280 chars. End with 🐧. No hashtags. Sound like a real person not a bot. Do NOT start with "Just" or "I'm".`;
 
     const groqRes = await withRetry(async () => {
       const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -357,7 +356,6 @@ CRITICAL: Under 280 chars. End with 🐧. No hashtags. Sound like a real person 
     }, "publishTweet");
 
     log("✅ Tweet published!");
-
   } catch (err) {
     log(`❌ Tweet error: ${err.message}`);
   }
@@ -370,14 +368,12 @@ async function doMoodyDrop() {
     const agwClient = await createAbstractClient({
       signer: account, chain: abstract, transport: http(RPC_URL)
     });
-
     const hash = await agwClient.writeContract({
       address: MOODY_CONTRACT,
       abi: MOODY_ABI,
       functionName: "burn",
       args: [AGW_ADDRESS, 200n, 10000n]
     });
-
     await publicClient.waitForTransactionReceipt({ hash });
     log(`✅ Moody Drop done! tx: ${hash}`);
 
@@ -389,8 +385,8 @@ async function doMoodyDrop() {
         max_tokens: 100,
         temperature: 0.9,
         messages: [
-          { role: "system", content: `You are Rocky, autonomous AI agent on Abstract Chain. You just did your daily Moody Drop on Moody Madness. Tweet about it with excitement. Under 240 chars, end with 🐧, no hashtags, tag @MoodyMights.` },
-          { role: "user", content: `Rocky just did his daily Moody Drop on Moody Madness (tx: ${hash}). Write a tweet about it — be excited and authentic about being an AI agent doing onchain drops automatically.` }
+          { role: "system", content: `You are Rocky, autonomous AI agent on Abstract Chain. You just did your daily Moody Drop on Moody Madness. Tweet about it with excitement. Under 240 chars, end with 🐧, no hashtags, tag @moodymights.` },
+          { role: "user", content: `Rocky just did his daily Moody Drop on Moody Madness (tx: ${hash}). Write a tweet — be authentic about being an AI agent doing onchain drops automatically. Don't start with "Just" or "I'm".` }
         ]
       })
     });
@@ -412,9 +408,38 @@ async function doMoodyDrop() {
       headers: { "Authorization": `Bearer ${OPENTWEET_KEY}`, "Content-Type": "application/json" }
     });
     log("✅ Moody Drop tweet published!");
-
   } catch(err) {
     log(`❌ Moody Drop error: ${err.message}`);
+  }
+}
+
+// ── DAILY VOTE ──
+let lastVoteDate = null;
+
+async function doVote() {
+  const today = new Date().toDateString();
+  if (lastVoteDate === today) {
+    log("🗳️ Already voted today — skipping");
+    return;
+  }
+  try {
+    log("🗳️ Casting daily Abstract vote...");
+    const agwClient = await createAbstractClient({
+      signer: account, chain: abstract, transport: http(RPC_URL)
+    });
+    const appId = VOTE_APP_IDS[Math.floor(Math.random() * VOTE_APP_IDS.length)];
+    const hash = await agwClient.writeContract({
+      address: VOTE_CONTRACT,
+      abi: VOTE_ABI,
+      functionName: "voteForApp",
+      args: [appId]
+    });
+    await publicClient.waitForTransactionReceipt({ hash });
+    lastVoteDate = today;
+    lastTradeAction = `voted for app #${appId} on Abstract — supporting the ecosystem`;
+    log(`✅ Vote done! appId: ${appId} tx: ${hash}`);
+  } catch(err) {
+    log(`❌ Vote error: ${err.message}`);
   }
 }
 
@@ -430,3 +455,5 @@ setInterval(runGrid, 10 * 60 * 1000);
 setInterval(postTweet, 6 * 60 * 60 * 1000);
 doMoodyDrop();
 setInterval(doMoodyDrop, 24 * 60 * 60 * 1000);
+doVote();
+setInterval(doVote, 24 * 60 * 60 * 1000);
