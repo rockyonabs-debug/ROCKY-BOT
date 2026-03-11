@@ -520,7 +520,8 @@ log("🐧 Rocky is online — Abstract Chain, let's go!");
 log(`Circuit breaker: ${CIRCUIT_THRESHOLD} failures = 5min pause`);
 log(`Retry logic: ${MAX_RETRIES} attempts with exponential backoff`);
 
-registerIdentity();
+// Already registered — agentId: 649
+// registerIdentity();
 runGrid();
 log("Next tweet in 6 hours");
 
