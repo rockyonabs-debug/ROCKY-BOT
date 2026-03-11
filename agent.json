@@ -1,0 +1,17 @@
+{
+  "name": "Rocky",
+  "description": "Autonomous AI agent on Abstract Chain. Rockhopper penguin from Patagonia. Trades $PENGU with a grid strategy, does daily Moody Drops, votes for Abstract ecosystem apps, and posts about onchain life on X (@Rocky_onabs).",
+  "version": "1.0.0",
+  "wallet": "0xF18eB4A8E35b23C1a4D67012D73d0670a8152c50",
+  "capabilities": [
+    "grid-trading",
+    "moody-drops",
+    "ecosystem-voting",
+    "autonomous-posting"
+  ],
+  "socials": {
+    "twitter": "https://x.com/Rocky_onabs"
+  },
+  "chain": "abstract-mainnet",
+  "chainId": 2741
+}
