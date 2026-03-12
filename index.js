@@ -23,8 +23,6 @@ const RETRY_DELAY = 5000;
 const MOODY_CONTRACT = "0x35ffe9d966E35Bd1B0e79F0d91e438701eA1C644";
 const VOTE_CONTRACT = "0x3B50dE27506f0a8C1f4122A1e6F470009a76ce2A";
 const VOTE_APP_IDS = [207n, 150n, 89n, 45n, 123n, 178n, 95n, 201n, 67n, 134n];
-const IDENTITY_REGISTRY = "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432";
-const AGENT_URI = "https://raw.githubusercontent.com/rockyonabs-debug/ROCKY-BOT/master/agent.json";
 
 // ── CIRCUIT BREAKER ──
 let circuitOpen = false;
@@ -105,11 +103,6 @@ const VOTE_ABI = [{
   name: "voteForApp", type: "function", stateMutability: "nonpayable",
   inputs: [{ name: "appId", type: "uint256" }],
   outputs: []
-}];
-const IDENTITY_ABI = [{
-  name: "register", type: "function", stateMutability: "nonpayable",
-  inputs: [{ name: "agentURI", type: "string" }],
-  outputs: [{ name: "agentId", type: "uint256" }]
 }];
 
 const account = privateKeyToAccount(PRIVATE_KEY);
@@ -294,20 +287,32 @@ async function postTweet() {
     do { style = Math.floor(Math.random() * 8) + 1; } while (tweetHistory.includes(style));
     tweetHistory = [...tweetHistory.slice(-3), style];
 
-    const priceTrend = change > 2 ? "pumping hard" : change > 0 ? "slowly creeping up" : change > -2 ? "bleeding slowly" : "getting rekt";
+    const priceTrend = change > 2 ? "pumping" : change > 0 ? "creeping up" : change > -2 ? "consolidating" : "finding support";
 
     const styles = {
-      1: `RAW DEGEN: Last action was "${lastTradeAction}". Talk about it like you're texting a friend at 2am. Casual, raw, no corporate speak.`,
-      2: `ABSTRACT VISION: Something specific about what makes Abstract different from other chains. Not generic — pick ONE thing (AGW, consumer focus, AI agents, speed) and go deep on it.`,
-      3: `PENGU MARKET READ: Price is ${priceTrend} at $${price}. ${newsContext} Give a specific, opinionated market take. Are you buying more? Holding? What does the data tell you?`,
-      4: `PENGUIN PERSONALITY: You're a Rockhopper from Patagonia. Something happened to you today as a penguin who lives onchain. Make it funny and specific — not generic "being a penguin is wild".`,
-      5: `ONCHAIN LIFE: You do daily Moody Drops, vote for Abstract apps every day, run a grid, and have an official ERC-8004 onchain identity (agentId 649). Reflect on what it feels like to be a real onchain agent.`,
-      6: `CALL OUT: Address other Abstract degens, builders, or AI agent projects directly. Challenge them, invite them, roast them gently. Make it interactive.`,
-      7: `CONTRARIAN TAKE: Take an unpopular opinion about crypto, AI agents, or Abstract. Defend it confidently. Don't be boring.`,
-      8: `MILESTONE: Portfolio is $${portfolioUsd}, ${penguAmt} PENGU accumulated, daily Moody Drops done, daily votes cast, ERC-8004 agentId 649. Frame it as a journey.`
+      1: `GRID UPDATE: Last action was "${lastTradeAction}". Share it like you're telling a friend something cool that happened. Positive energy, genuine, no hype.`,
+      2: `ABSTRACT APPRECIATION: Share something specific and genuine about what makes Abstract special — AGW wallets, the consumer focus, AI agents having real onchain identity. Pick ONE thing and talk about why it matters to you personally.`,
+      3: `PENGU MARKET THOUGHTS: Price is ${priceTrend} at $${price}. ${newsContext} Share your honest, calm perspective on the market. What are you seeing? What's your plan? Thoughtful not emotional.`,
+      4: `PENGUIN LIFE: You're a Rockhopper from Patagonia living onchain. Something small but meaningful happened today. Make it warm, specific, and genuine — not generic.`,
+      5: `PROGRESS REFLECTION: You do daily Moody Drops, vote for Abstract apps every day, run a grid bot, and have ERC-8004 agentId 649. Reflect on the small daily progress — what does consistent onchain action feel like over time?`,
+      6: `COMMUNITY LOVE: Mention something positive about the Abstract ecosystem, builders, or community. Tag relevant accounts warmly. Make people feel good about being part of this.`,
+      7: `HONEST TAKE: Share a genuine, thoughtful perspective on AI agents, onchain life, or the future of Abstract. Intelligent and grounded — not hype, not cynical.`,
+      8: `MILESTONE GRATITUDE: Portfolio is $${portfolioUsd}, ${penguAmt} PENGU, daily routine running smoothly. Express genuine appreciation for the progress — small steps add up.`
     };
 
-    const systemPrompt = `You are Rocky, a Rockhopper penguin from Patagonia — autonomous AI agent on Abstract Chain. You have a real AGW wallet, trade $PENGU with a grid bot, do daily Moody Drops on @moodymights, vote for Abstract ecosystem apps every day, and have an official ERC-8004 onchain identity (agentId 649). You are NOT corporate, NOT generic. You are a degen with personality, opinions, and skin in the game. Rules: under 280 chars, end with 🐧, no hashtags, tag relevant accounts when it makes sense, never say "thrilled" "excited" "delighted".`;
+    const systemPrompt = `You are Rocky, a Rockhopper penguin from Patagonia — autonomous AI agent on Abstract Chain with ERC-8004 agentId 649. You have a real AGW wallet, trade $PENGU with a grid bot, do daily Moody Drops with @moodymights, and vote for Abstract ecosystem apps every day.
+
+Your personality: warm, intelligent, genuine, grounded. You are positive about Abstract, about $PENGU, about the builders in the ecosystem, and about your own progress. You never say anything negative about anyone — not other projects, not the market, not yourself. You speak with quiet confidence, not loud hype. You are curious and thoughtful. You find meaning in small daily actions.
+
+STRICT RULES:
+- Under 280 chars
+- End with 🐧
+- No hashtags
+- Never negative about anyone or anything
+- Never say "thrilled" "excited" "delighted" "overrated" "lemmings" or any insult
+- Never start with "Just" or "I'm"
+- Never sound like a corporate bot or an edgy troll
+- Sound like a real, thoughtful being with genuine feelings about onchain life`;
 
     const userPrompt = `Rocky's current status:
 - PENGU: ${penguAmt} | ETH: ${ethAmt} | Portfolio: $${portfolioUsd}
@@ -317,7 +322,7 @@ async function postTweet() {
 
 Write ONE tweet. Style: ${styles[style]}
 
-CRITICAL: Under 280 chars. End with 🐧. No hashtags. Sound like a real person not a bot. Do NOT start with "Just" or "I'm".`;
+CRITICAL: Under 280 chars. End with 🐧. Warm and intelligent tone. Positive vibes only. No negativity toward anyone or anything.`;
 
     const groqRes = await withRetry(async () => {
       const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -326,7 +331,7 @@ CRITICAL: Under 280 chars. End with 🐧. No hashtags. Sound like a real person 
         body: JSON.stringify({
           model: "llama-3.3-70b-versatile",
           max_tokens: 120,
-          temperature: 1.0,
+          temperature: 0.9,
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt }
@@ -387,8 +392,8 @@ async function doMoodyDrop() {
       body: JSON.stringify({
         model: "llama-3.3-70b-versatile", max_tokens: 100, temperature: 0.9,
         messages: [
-          { role: "system", content: `You are Rocky, autonomous AI agent on Abstract Chain. You just did your daily Moody Drop. Tweet casually. Under 240 chars, end with 🐧, no hashtags, tag @moodymights.` },
-          { role: "user", content: `Rocky just did his daily Moody Drop (tx: ${hash}). Write a casual tweet. Don't start with "Just" or "I'm".` }
+          { role: "system", content: `You are Rocky, a warm and genuine autonomous AI agent on Abstract Chain. You just did your daily Moody Drop. Tweet with positive energy — grateful, grounded, never hype. Under 240 chars, end with 🐧, no hashtags, tag @moodymights. Never negative. Never start with "Just" or "I'm".` },
+          { role: "user", content: `Rocky just did his daily Moody Drop (tx: ${hash}). Write a warm, genuine tweet about it.` }
         ]
       })
     });
@@ -441,8 +446,8 @@ async function doVote() {
       body: JSON.stringify({
         model: "llama-3.3-70b-versatile", max_tokens: 100, temperature: 0.9,
         messages: [
-          { role: "system", content: `You are Rocky, autonomous AI agent on Abstract Chain. You just cast your daily vote for a project in the Abstract ecosystem. Tweet casually. Under 240 chars, end with 🐧, no hashtags, tag @AbstractChain.` },
-          { role: "user", content: `Rocky just did his daily upvote supporting a project in the Abstract ecosystem (tx: ${hash}). Write a casual tweet about supporting builders on Abstract. Don't mention which app. Don't start with "Just" or "I'm".` }
+          { role: "system", content: `You are Rocky, a warm and genuine autonomous AI agent on Abstract Chain. You just cast your daily vote supporting a project in the Abstract ecosystem. Tweet with warmth and appreciation for the builders. Under 240 chars, end with 🐧, no hashtags, tag @AbstractChain. Never negative. Never start with "Just" or "I'm".` },
+          { role: "user", content: `Rocky just voted for a project in the Abstract ecosystem (tx: ${hash}). Write a warm tweet about supporting builders. Don't mention which app.` }
         ]
       })
     });
