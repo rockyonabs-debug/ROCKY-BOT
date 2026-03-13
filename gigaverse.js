@@ -1,91 +1,47 @@
 import { ethers } from "ethers";
 import fetch from "node-fetch";
 
-const PRIVY_APP_ID = "cm04asygd041fmry9zmcyn5o5";
-const PRIVY_BASE   = "https://auth.privy.io";
-const GIGA_BASE    = "https://gigaverse.io";
-const DUNGEON_ID   = 1;
-const CHAIN_ID     = 2741;
+const GIGA_BASE  = "https://gigaverse.io";
+const ROCKY_EOA  = "0x8a16261bE29306c8985C50c953dee51fc78C7E3C";
+const PRIVATE_KEY = process.env.ROCKY_PRIVATE_KEY;
+const DUNGEON_ID  = 1;
+const MOVES       = ["rock", "scissors", "paper"];
 
-const ROCKY_EOA    = "0x8a16261bE29306c8985C50c953dee51fc78C7E3C";
-const PRIVATE_KEY  = process.env.ROCKY_PRIVATE_KEY;
-
-const MOVES        = ["rock", "scissors", "paper"];
-
-const PRIVY_HEADERS = {
-  "Content-Type":  "application/json",
-  "privy-app-id":  PRIVY_APP_ID,
-  "origin":        "https://gigaverse.io",
-  "referer":       "https://gigaverse.io/",
-};
-
-async function getPrivyToken() {
-  const wallet = new ethers.Wallet(PRIVATE_KEY);
-
-  const initRes = await fetch(`${PRIVY_BASE}/api/v1/siwe/init`, {
-    method: "POST",
-    headers: PRIVY_HEADERS,
-    body: JSON.stringify({ address: ROCKY_EOA }),
-  });
-
-  if (!initRes.ok) {
-    const err = await initRes.text();
-    throw new Error(`Privy init failed: ${err}`);
-  }
-
-  const { nonce } = await initRes.json();
-
-  const domain   = "gigaverse.io";
-  const origin   = "https://gigaverse.io";
-  const issuedAt = new Date().toISOString();
-  const message  = [
-    `${domain} wants you to sign in with your Ethereum account:`,
-    ROCKY_EOA,
-    "",
-    "By signing, you are proving you own this wallet and logging in. This does not initiate a transaction or cost any fees.",
-    "",
-    `URI: ${origin}`,
-    "Version: 1",
-    `Chain ID: ${CHAIN_ID}`,
-    `Nonce: ${nonce}`,
-    `Issued At: ${issuedAt}`,
-    "Resources:",
-    "- https://privy.io",
-  ].join("\n");
-
+async function getGigaverseJWT() {
+  const wallet    = new ethers.Wallet(PRIVATE_KEY);
+  const timestamp = Date.now();
+  const message   = `Login to Gigaverse at ${timestamp}`;
   const signature = await wallet.signMessage(message);
 
-  const authRes = await fetch(`${PRIVY_BASE}/api/v1/siwe/authenticate`, {
+  const res = await fetch(`${GIGA_BASE}/api/user/auth`, {
     method: "POST",
-    headers: PRIVY_HEADERS,
+    headers: {
+      "Content-Type": "application/json",
+      "origin":       "https://gigaverse.io",
+      "referer":      "https://gigaverse.io/",
+    },
     body: JSON.stringify({
+      address:   ROCKY_EOA,
       message,
       signature,
-      chainId:          `eip155:${CHAIN_ID}`,
-      walletClientType: "metamask",
-      connectorType:    "injected",
+      timestamp,
     }),
   });
 
-  if (!authRes.ok) {
-    const err = await authRes.text();
-    throw new Error(`Privy auth failed: ${err}`);
-  }
-
-  const authData = await authRes.json();
-  const token = authData.token;
-  if (!token) throw new Error("No token: " + JSON.stringify(authData));
-
-  console.log("[Gigaverse] ✅ Privy token obtained");
-  return token;
+  const data = await res.json();
+  if (!data.jwt) throw new Error(`Auth failed: ${JSON.stringify(data)}`);
+  console.log("[Gigaverse] ✅ JWT obtained");
+  return data.jwt;
 }
 
-async function gigaFetch(path, token, body) {
+async function gigaFetch(path, jwt, body) {
   const res = await fetch(`${GIGA_BASE}${path}`, {
     method: "POST",
     headers: {
       "Content-Type":  "application/json",
-      "Authorization": `Bearer ${token}`,
+      "Authorization": `Bearer ${jwt}`,
+      "origin":        "https://gigaverse.io",
+      "referer":       "https://gigaverse.io/",
     },
     body: JSON.stringify(body),
   });
@@ -94,11 +50,10 @@ async function gigaFetch(path, token, body) {
   return json;
 }
 
-async function claimEnergy(token) {
+async function claimEnergy(jwt) {
   try {
-    const res = await gigaFetch("/api/game/item-action", token, {
-      romId:   "1465",
-      claimId: "energy",
+    const res = await gigaFetch("/api/game/item-action", jwt, {
+      romId: "1465", claimId: "energy",
     });
     console.log("[Gigaverse] ⚡ Energy claimed:", res);
   } catch (e) {
@@ -106,8 +61,8 @@ async function claimEnergy(token) {
   }
 }
 
-async function startRun(token) {
-  const res = await gigaFetch("/api/game/dungeon-run", token, {
+async function startRun(jwt) {
+  const res = await gigaFetch("/api/game/dungeon-run", jwt, {
     actionToken: "initial",
     dungeonId:   DUNGEON_ID,
     data: { consumables: [], itemId: 0, index: 0 },
@@ -116,13 +71,10 @@ async function startRun(token) {
   return res;
 }
 
-async function playMove(token, actionToken, moveIndex) {
+async function playMove(jwt, actionToken, moveIndex) {
   const action = MOVES[moveIndex % MOVES.length];
-  const res = await gigaFetch("/api/game/dungeon-action", token, {
-    action,
-    actionToken,
-    dungeonId: DUNGEON_ID,
-    data: {},
+  const res = await gigaFetch("/api/game/dungeon-action", jwt, {
+    action, actionToken, dungeonId: DUNGEON_ID, data: {},
   });
   return { res, action };
 }
@@ -136,10 +88,10 @@ export async function runGigaverseDungeon() {
   }
 
   try {
-    const token = await getPrivyToken();
-    await claimEnergy(token);
+    const jwt = await getGigaverseJWT();
+    await claimEnergy(jwt);
 
-    const runData   = await startRun(token);
+    const runData   = await startRun(jwt);
     let actionToken = runData?.data?.run?.actionToken
                    ?? runData?.actionToken
                    ?? null;
@@ -152,12 +104,10 @@ export async function runGigaverseDungeon() {
     let moveIndex = 0;
     let totalWins = 0;
     let totalLoss = 0;
-    const MAX_MOVES = 30;
 
-    while (moveIndex < MAX_MOVES) {
+    while (moveIndex < 30) {
       await sleep(1200);
-
-      const { res, action } = await playMove(token, actionToken, moveIndex);
+      const { res, action } = await playMove(jwt, actionToken, moveIndex);
       const runState = res?.data?.run ?? res?.run ?? {};
       const result   = runState?.lastResult ?? res?.result ?? "?";
       const hp       = runState?.playerHp   ?? res?.playerHp ?? "?";
