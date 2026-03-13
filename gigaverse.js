@@ -1,8 +1,7 @@
 import fetch from "node-fetch";
 
-const GIGA_BASE  = "https://gigaverse.io";
-const DUNGEON_ID = 1;
-const MOVES      = ["rock", "scissors", "paper"];
+const GIGA_BASE = "https://gigaverse.io";
+const MOVES     = ["rock", "scissors", "paper"];
 
 async function gigaFetch(path, body, method = "POST") {
   const jwt = process.env.GIGAVERSE_JWT;
@@ -25,43 +24,27 @@ async function gigaFetch(path, body, method = "POST") {
 }
 
 async function getDungeonState() {
-  const res = await gigaFetch("/api/game/dungeon/state", null, "GET");
-  return res;
+  return await gigaFetch("/api/game/dungeon/state", null, "GET");
 }
 
 async function startRun(actionToken) {
-  const res = await gigaFetch("/api/game/dungeon/action", {
+  return await gigaFetch("/api/game/dungeon/action", {
     action:      "start",
     actionToken: actionToken,
-    dungeonId:   DUNGEON_ID,
+    dungeonId:   1,
     data:        { consumables: [], itemId: 0, index: 0 },
   });
-  return res;
 }
 
-async function playMove(actionToken, moveIndex) {
+async function playMove(actionToken, moveIndex, dungeonId) {
   const action = MOVES[moveIndex % MOVES.length];
   const res = await gigaFetch("/api/game/dungeon/action", {
     action,
     actionToken,
-    dungeonId: DUNGEON_ID,
+    dungeonId,
     data: {},
   });
   return { res, action };
-}
-
-function extractGameInfo(res) {
-  const run       = res?.data?.run ?? res?.run ?? {};
-  const players   = run?.players ?? [];
-  const me        = players[0] ?? {};
-  const hp        = me?.health?.current ?? "?";
-  const iWon      = me?.thisPlayerWin ?? false;
-  const iLost     = players[1]?.thisPlayerWin ?? false;
-  const result    = iWon ? "win" : iLost ? "lose" : "?";
-  const nextToken = res?.data?.actionToken ?? res?.actionToken ?? run?.actionToken ?? null;
-  const isOver    = run?.lootPhase === true
-                 || me?.health?.current === 0;
-  return { hp, result, nextToken, isOver, success: res?.success !== false };
 }
 
 export async function runGigaverseDungeon() {
@@ -77,39 +60,58 @@ export async function runGigaverseDungeon() {
     const activeRun = state?.data?.run;
     let actionToken = state?.data?.actionToken ?? 0;
 
+    // Obtenemos el dungeonId real de la run activa o del entity
+    let dungeonId = activeRun?.DUNGEON_ID_CID
+                 ?? state?.data?.entity?.DUNGEON_ID_CID
+                 ?? 1;
+
+    console.log("[Gigaverse] 🗺️ dungeonId:", dungeonId, "| actionToken:", actionToken);
+
     if (activeRun && !activeRun.lootPhase) {
       console.log("[Gigaverse] 🔄 Run activa encontrada, continuando...");
     } else {
       console.log("[Gigaverse] ▶️ Iniciando nueva run...");
       const startData = await startRun(actionToken);
-      // Siempre usar el token que devuelve el servidor
+      console.log("[Gigaverse] startRun response:", JSON.stringify(startData));
       actionToken = startData?.data?.actionToken
                  ?? startData?.actionToken
                  ?? actionToken;
-      console.log("[Gigaverse] ⚔️ Run iniciada, actionToken:", actionToken);
+      dungeonId   = startData?.data?.run?.DUNGEON_ID_CID
+                 ?? startData?.data?.entity?.DUNGEON_ID_CID
+                 ?? dungeonId;
+      console.log("[Gigaverse] ⚔️ Run iniciada | dungeonId:", dungeonId, "| actionToken:", actionToken);
     }
 
-    let moveIndex  = 0;
-    let totalWins  = 0;
-    let totalLoss  = 0;
-    let failCount  = 0;
+    let moveIndex = 0;
+    let totalWins = 0;
+    let totalLoss = 0;
+    let failCount = 0;
 
     while (moveIndex < 30) {
       await sleep(1500);
-      const { res, action } = await playMove(actionToken, moveIndex);
-      const { hp, result, nextToken, isOver, success } = extractGameInfo(res);
+      const { res, action } = await playMove(actionToken, moveIndex, dungeonId);
+      console.log("[Gigaverse] RAW:", JSON.stringify(res));
 
-      // Siempre actualizamos el token si el servidor manda uno nuevo
+      const run       = res?.data?.run ?? res?.run ?? {};
+      const players   = run?.players ?? [];
+      const me        = players[0] ?? {};
+      const hp        = me?.health?.current ?? "?";
+      const iWon      = me?.thisPlayerWin ?? false;
+      const iLost     = players[1]?.thisPlayerWin ?? false;
+      const result    = iWon ? "win" : iLost ? "lose" : "?";
+      const nextToken = res?.data?.actionToken ?? res?.actionToken ?? null;
+      const success   = res?.success !== false;
+      const isOver    = run?.lootPhase === true || me?.health?.current === 0;
+
       if (nextToken) actionToken = nextToken;
 
       if (!success) {
         failCount++;
-        console.log(`[Gigaverse] ⚠️ Move falló (intento ${failCount}), nuevo token: ${actionToken}`);
+        console.log(`[Gigaverse] ⚠️ Falló intento ${failCount}, token: ${actionToken}`);
         if (failCount >= 3) {
-          console.log("[Gigaverse] ❌ Demasiados fallos, abortando");
+          console.log("[Gigaverse] ❌ Abortando");
           break;
         }
-        // No incrementamos moveIndex — reintentamos con el token nuevo
         continue;
       }
 
@@ -118,11 +120,7 @@ export async function runGigaverseDungeon() {
 
       if (result === "win")  totalWins++;
       if (result === "lose") totalLoss++;
-
-      if (isOver) {
-        console.log("[Gigaverse] 🏁 Run terminada");
-        break;
-      }
+      if (isOver) { console.log("[Gigaverse] 🏁 Run terminada"); break; }
 
       moveIndex++;
     }
