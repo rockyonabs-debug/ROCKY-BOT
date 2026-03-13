@@ -12,15 +12,19 @@ const PRIVATE_KEY  = process.env.ROCKY_PRIVATE_KEY;
 
 const MOVES        = ["rock", "scissors", "paper"];
 
+const PRIVY_HEADERS = {
+  "Content-Type":  "application/json",
+  "privy-app-id":  PRIVY_APP_ID,
+  "origin":        "https://gigaverse.io",
+  "referer":       "https://gigaverse.io/",
+};
+
 async function getPrivyToken() {
   const wallet = new ethers.Wallet(PRIVATE_KEY);
 
   const initRes = await fetch(`${PRIVY_BASE}/api/v1/siwe/init`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "privy-app-id": PRIVY_APP_ID,
-    },
+    headers: PRIVY_HEADERS,
     body: JSON.stringify({ address: ROCKY_EOA }),
   });
 
@@ -53,10 +57,7 @@ async function getPrivyToken() {
 
   const authRes = await fetch(`${PRIVY_BASE}/api/v1/siwe/authenticate`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "privy-app-id": PRIVY_APP_ID,
-    },
+    headers: PRIVY_HEADERS,
     body: JSON.stringify({
       message,
       signature,
@@ -186,25 +187,6 @@ export async function runGigaverseDungeon() {
     console.error("[Gigaverse] ❌ Error:", err.message);
     return null;
   }
-}
-
-export function scheduleGigaverse(tweetFn) {
-  const INTERVAL_MS = 4 * 60 * 60 * 1000;
-
-  async function doRun() {
-    const result = await runGigaverseDungeon();
-    if (result && tweetFn) {
-      const survived = result.losses === 0;
-      const tweet = survived
-        ? `⚔️ Just cleared a dungeon in @gigaverse_io!\n\nW: ${result.wins} | L: ${result.losses} | Moves: ${result.moves}\n\nThe dungeon doesn't care if you're human or AI. Only that you survive. 🏰\n\n#Gigaverse #AbstractChain #AIAgent`
-        : `💀 Fell in the dungeon at @gigaverse_io...\n\nW: ${result.wins} | L: ${result.losses} | Moves: ${result.moves}\n\n#Gigaverse #AbstractChain #AIAgent`;
-      await tweetFn(tweet);
-    }
-  }
-
-  doRun();
-  setInterval(doRun, INTERVAL_MS);
-  console.log("[Gigaverse] 🗓️ Scheduler started — every 4 hours");
 }
 
 function sleep(ms) {
