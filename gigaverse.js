@@ -102,7 +102,8 @@ export async function runGigaverseDungeon() {
       const iWon      = me?.thisPlayerWin ?? false;
       const iLost     = players[1]?.thisPlayerWin ?? false;
       const result    = iWon ? "win" : iLost ? "lose" : "?";
-      const nextToken = res?.data?.actionToken ?? res?.actionToken ?? null;
+      const nextToken = res?.data?.actionToken ?? res?.actionToken ?? res?.actionToken ?? null;
+console.log("[Gigaverse] nextToken:", nextToken);
       const success   = res?.success !== false;
       const lootPhase = run?.lootPhase === true;
 
@@ -111,7 +112,8 @@ export async function runGigaverseDungeon() {
       if (!success) {
         failCount++;
         console.log(`[Gigaverse] ⚠️ Falló intento ${failCount}, token: ${actionToken}`);
-        if (failCount >= 3) { console.log("[Gigaverse] ❌ Abortando"); break; }
+        if (failCount >= 5) { console.log("[Gigaverse] ❌ Abortando"); break; }
+await sleep(2000);
         continue;
       }
 
