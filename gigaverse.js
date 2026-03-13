@@ -51,18 +51,17 @@ async function playMove(actionToken, moveIndex) {
 }
 
 function extractGameInfo(res) {
-  const run      = res?.data?.run ?? res?.run ?? {};
-  const players  = run?.players ?? [];
-  const me       = players[0] ?? {};
-  const hp       = me?.health?.current ?? "?";
-  const iWon     = me?.thisPlayerWin ?? false;
-  const iLost    = players[1]?.thisPlayerWin ?? false;
-  const result   = iWon ? "win" : iLost ? "lose" : "?";
+  const run       = res?.data?.run ?? res?.run ?? {};
+  const players   = run?.players ?? [];
+  const me        = players[0] ?? {};
+  const hp        = me?.health?.current ?? "?";
+  const iWon      = me?.thisPlayerWin ?? false;
+  const iLost     = players[1]?.thisPlayerWin ?? false;
+  const result    = iWon ? "win" : iLost ? "lose" : "?";
   const nextToken = res?.data?.actionToken ?? res?.actionToken ?? run?.actionToken ?? null;
-  const isOver   = run?.lootPhase === true
-                || me?.health?.current === 0
-                || res?.success === false;
-  return { hp, result, nextToken, isOver };
+  const isOver    = run?.lootPhase === true
+                 || me?.health?.current === 0;
+  return { hp, result, nextToken, isOver, success: res?.success !== false };
 }
 
 export async function runGigaverseDungeon() {
@@ -83,35 +82,52 @@ export async function runGigaverseDungeon() {
     } else {
       console.log("[Gigaverse] ▶️ Iniciando nueva run...");
       const startData = await startRun(actionToken);
-      actionToken     = startData?.data?.actionToken
-                     ?? startData?.actionToken
-                     ?? actionToken;
+      // Siempre usar el token que devuelve el servidor
+      actionToken = startData?.data?.actionToken
+                 ?? startData?.actionToken
+                 ?? actionToken;
       console.log("[Gigaverse] ⚔️ Run iniciada, actionToken:", actionToken);
     }
 
-    let moveIndex = 0;
-    let totalWins = 0;
-    let totalLoss = 0;
+    let moveIndex  = 0;
+    let totalWins  = 0;
+    let totalLoss  = 0;
+    let failCount  = 0;
 
     while (moveIndex < 30) {
-      await sleep(1200);
+      await sleep(1500);
       const { res, action } = await playMove(actionToken, moveIndex);
-      console.log("[Gigaverse] RAW:", JSON.stringify(res));
-      const { hp, result, nextToken, isOver } = extractGameInfo(res);
+      const { hp, result, nextToken, isOver, success } = extractGameInfo(res);
+
+      // Siempre actualizamos el token si el servidor manda uno nuevo
+      if (nextToken) actionToken = nextToken;
+
+      if (!success) {
+        failCount++;
+        console.log(`[Gigaverse] ⚠️ Move falló (intento ${failCount}), nuevo token: ${actionToken}`);
+        if (failCount >= 3) {
+          console.log("[Gigaverse] ❌ Demasiados fallos, abortando");
+          break;
+        }
+        // No incrementamos moveIndex — reintentamos con el token nuevo
+        continue;
+      }
+
+      failCount = 0;
       console.log(`[Gigaverse] Move ${moveIndex + 1}: ${action.toUpperCase()} → ${result} | HP: ${hp}`);
 
       if (result === "win")  totalWins++;
       if (result === "lose") totalLoss++;
 
-      if (nextToken) actionToken = nextToken;
       if (isOver) {
         console.log("[Gigaverse] 🏁 Run terminada");
         break;
       }
+
       moveIndex++;
     }
 
-    const summary = { wins: totalWins, losses: totalLoss, moves: moveIndex + 1 };
+    const summary = { wins: totalWins, losses: totalLoss, moves: moveIndex };
     console.log("[Gigaverse] 📊 Summary:", summary);
     return summary;
 
