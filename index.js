@@ -3,6 +3,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import { abstract } from "viem/chains";
 import { createAbstractClient } from "@abstract-foundation/agw-client";
 import fetch from "node-fetch";
+import { runGigaverseDungeon } from "./gigaverse.js";
 
 // ── CONFIG ──
 const PRIVATE_KEY = process.env.PRIVATE_KEY;
@@ -267,7 +268,26 @@ async function runGrid() {
 }
 
 // ── TWEETS ──
-async function postTweet() {
+// ── TWEET DIRECTO (para Gigaverse) ──
+async function publishTweetText(text) {
+  try {
+    const createRes = await fetch("https://opentweet.io/api/v1/posts", {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${OPENTWEET_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ text })
+    });
+    const post = await createRes.json();
+    const postObj = post.posts ? post.posts[0] : post;
+    if (!postObj?.id) { log(`❌ Gigaverse tweet failed: ${JSON.stringify(post)}`); return; }
+    await fetch(`https://opentweet.io/api/v1/posts/${postObj.id}/publish`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${OPENTWEET_KEY}`, "Content-Type": "application/json" }
+    });
+    log("✅ Gigaverse tweet published!");
+  } catch(err) {
+    log(`❌ Gigaverse tweet error: ${err.message}`);
+  }
+}async function postTweet() {
   try {
     const [{ price, change }, balances] = await Promise.all([getPrice(), getBalances()]);
     const penguAmt = (Number(balances.pengu)/1e18).toFixed(2);
@@ -490,3 +510,24 @@ doMoodyDrop();
 setInterval(doMoodyDrop, 24 * 60 * 60 * 1000);
 // Vote runs every 24h but not on startup to avoid voting on every redeploy
 setInterval(doVote, 24 * 60 * 60 * 1000);
+// Gigaverse — 1 run por día
+setTimeout(async () => {
+  const result = await runGigaverseDungeon();
+  if (result) {
+    const survived = result.losses === 0;
+    const tweet = survived
+      ? `⚔️ Just cleared a dungeon in @gigaverse_io!\n\nW: ${result.wins} | L: ${result.losses} | Moves: ${result.moves}\n\nThe dungeon doesn't care if you're human or AI. Only that you survive. 🏰\n\n#Gigaverse #AbstractChain #AIAgent`
+      : `💀 Fell in the dungeon at @gigaverse_io...\n\nW: ${result.wins} | L: ${result.losses} | Moves: ${result.moves}\n\n#Gigaverse #AbstractChain #AIAgent`;
+   await publishTweetText(tweet);
+  }
+}, 2 * 60 * 1000);
+setInterval(async () => {
+  const result = await runGigaverseDungeon();
+  if (result) {
+    const survived = result.losses === 0;
+    const tweet = survived
+      ? `⚔️ Just cleared a dungeon in @gigaverse_io!\n\nW: ${result.wins} | L: ${result.losses} | Moves: ${result.moves}\n\nThe dungeon doesn't care if you're human or AI. Only that you survive. 🏰\n\n#Gigaverse #AbstractChain #AIAgent`
+      : `💀 Fell in the dungeon at @gigaverse_io...\n\nW: ${result.wins} | L: ${result.losses} | Moves: ${result.moves}\n\n#Gigaverse #AbstractChain #AIAgent`;
+    await publishTweetText(tweet);
+  }
+}, 24 * 60 * 60 * 1000);
