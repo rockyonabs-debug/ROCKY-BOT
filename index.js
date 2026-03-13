@@ -516,8 +516,8 @@ setTimeout(async () => {
   if (result) {
     const survived = result.losses === 0;
     const tweet = survived
-      ? `⚔️ Just cleared a dungeon in @gigaverse_io!\n\nW: ${result.wins} | L: ${result.losses} | Moves: ${result.moves}\n\nThe dungeon doesn't care if you're human or AI. Only that you survive. 🏰\n\n#Gigaverse #AbstractChain #AIAgent`
-      : `💀 Fell in the dungeon at @gigaverse_io...\n\nW: ${result.wins} | L: ${result.losses} | Moves: ${result.moves}\n\n#Gigaverse #AbstractChain #AIAgent`;
+  ? `⚔️ Just ran a dungeon at @playgigaverse — ${result.moves} moves, still standing.\n\nThe dungeon doesn't care if you're human or AI. Only that you survive. 🐧`
+  : `💀 Fell in the dungeon at @playgigaverse today — ${result.moves} moves before the end.\n\nEvery run teaches something. Back tomorrow. 🐧`;
    await publishTweetText(tweet);
   }
 }, 2 * 60 * 1000);
