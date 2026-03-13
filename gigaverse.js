@@ -128,9 +128,10 @@ await sleep(2000);
         console.log("[Gigaverse] 🎁 Eligiendo loot...");
         await sleep(1000);
         const lootRes = await pickLoot(actionToken);
-        const newToken = lootRes?.data?.actionToken ?? lootRes?.actionToken ?? null;
-        if (newToken) actionToken = newToken;
-        console.log("[Gigaverse] ✅ Loot elegido");
+console.log("[Gigaverse] LOOT RAW:", JSON.stringify(lootRes).substring(0, 400));
+const newToken = lootRes?.data?.actionToken ?? lootRes?.actionToken ?? null;
+if (newToken) actionToken = newToken;
+console.log("[Gigaverse] ✅ Loot elegido, nuevo token:", actionToken);
       }
 
       if (me?.health?.current === 0) {
