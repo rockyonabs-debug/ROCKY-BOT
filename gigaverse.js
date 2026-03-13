@@ -1,40 +1,11 @@
-import { ethers } from "ethers";
 import fetch from "node-fetch";
 
 const GIGA_BASE  = "https://gigaverse.io";
-const ROCKY_EOA  = "0x8a16261bE29306c8985C50c953dee51fc78C7E3C";
-const PRIVATE_KEY = process.env.ROCKY_PRIVATE_KEY;
-const DUNGEON_ID  = 1;
-const MOVES       = ["rock", "scissors", "paper"];
+const DUNGEON_ID = 1;
+const MOVES      = ["rock", "scissors", "paper"];
 
-async function getGigaverseJWT() {
-  const wallet    = new ethers.Wallet(PRIVATE_KEY);
-  const timestamp = Date.now();
-  const message   = `Login to Gigaverse at ${timestamp}`;
-  const signature = await wallet.signMessage(message);
-
-  const res = await fetch(`${GIGA_BASE}/api/user/auth`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "origin":       "https://gigaverse.io",
-      "referer":      "https://gigaverse.io/",
-    },
-    body: JSON.stringify({
-      address:   ROCKY_EOA,
-      message,
-      signature,
-      timestamp,
-    }),
-  });
-
-  const data = await res.json();
-  if (!data.jwt) throw new Error(`Auth failed: ${JSON.stringify(data)}`);
-  console.log("[Gigaverse] ✅ JWT obtained");
-  return data.jwt;
-}
-
-async function gigaFetch(path, jwt, body) {
+async function gigaFetch(path, body) {
+  const jwt = process.env.GIGAVERSE_JWT;
   const res = await fetch(`${GIGA_BASE}${path}`, {
     method: "POST",
     headers: {
@@ -45,35 +16,38 @@ async function gigaFetch(path, jwt, body) {
     },
     body: JSON.stringify(body),
   });
-  const json = await res.json();
-  if (!res.ok) throw new Error(`Gigaverse error [${path}]: ${JSON.stringify(json)}`);
-  return json;
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch(e) {
+    throw new Error(`Not JSON: ${text.substring(0, 200)}`);
+  }
 }
 
-async function claimEnergy(jwt) {
+async function claimEnergy() {
   try {
-    const res = await gigaFetch("/api/game/item-action", jwt, {
+    const res = await gigaFetch("/api/game/item-action", {
       romId: "1465", claimId: "energy",
     });
-    console.log("[Gigaverse] ⚡ Energy claimed:", res);
+    console.log("[Gigaverse] ⚡ Energy:", JSON.stringify(res));
   } catch (e) {
     console.log("[Gigaverse] Energy skip:", e.message);
   }
 }
 
-async function startRun(jwt) {
-  const res = await gigaFetch("/api/game/dungeon-run", jwt, {
+async function startRun() {
+  const res = await gigaFetch("/api/game/dungeon-run", {
     actionToken: "initial",
     dungeonId:   DUNGEON_ID,
     data: { consumables: [], itemId: 0, index: 0 },
   });
-  console.log("[Gigaverse] ⚔️  Run started");
+  console.log("[Gigaverse] ⚔️ startRun response:", JSON.stringify(res));
   return res;
 }
 
-async function playMove(jwt, actionToken, moveIndex) {
+async function playMove(actionToken, moveIndex) {
   const action = MOVES[moveIndex % MOVES.length];
-  const res = await gigaFetch("/api/game/dungeon-action", jwt, {
+  const res = await gigaFetch("/api/game/dungeon-action", {
     action, actionToken, dungeonId: DUNGEON_ID, data: {},
   });
   return { res, action };
@@ -82,16 +56,15 @@ async function playMove(jwt, actionToken, moveIndex) {
 export async function runGigaverseDungeon() {
   console.log("[Gigaverse] 🏰 Rocky entering the dungeon...");
 
-  if (!PRIVATE_KEY) {
-    console.error("[Gigaverse] ❌ ROCKY_PRIVATE_KEY not set!");
+  if (!process.env.GIGAVERSE_JWT) {
+    console.error("[Gigaverse] ❌ GIGAVERSE_JWT not set!");
     return null;
   }
 
   try {
-    const jwt = await getGigaverseJWT();
-    await claimEnergy(jwt);
+    await claimEnergy();
 
-    const runData   = await startRun(jwt);
+    const runData   = await startRun();
     let actionToken = runData?.data?.run?.actionToken
                    ?? runData?.actionToken
                    ?? null;
@@ -107,7 +80,7 @@ export async function runGigaverseDungeon() {
 
     while (moveIndex < 30) {
       await sleep(1200);
-      const { res, action } = await playMove(jwt, actionToken, moveIndex);
+      const { res, action } = await playMove(actionToken, moveIndex);
       const runState = res?.data?.run ?? res?.run ?? {};
       const result   = runState?.lastResult ?? res?.result ?? "?";
       const hp       = runState?.playerHp   ?? res?.playerHp ?? "?";
