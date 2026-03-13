@@ -55,7 +55,6 @@ function extractGameInfo(res) {
   const players  = run?.players ?? [];
   const me       = players[0] ?? {};
   const hp       = me?.health?.current ?? "?";
-  const lastMove = me?.lastMove ?? "?";
   const iWon     = me?.thisPlayerWin ?? false;
   const iLost    = players[1]?.thisPlayerWin ?? false;
   const result   = iWon ? "win" : iLost ? "lose" : "?";
@@ -75,7 +74,6 @@ export async function runGigaverseDungeon() {
   }
 
   try {
-    // Chequeamos estado actual
     const state     = await getDungeonState();
     const activeRun = state?.data?.run;
     let actionToken = state?.data?.actionToken ?? 0;
@@ -83,7 +81,6 @@ export async function runGigaverseDungeon() {
     if (activeRun && !activeRun.lootPhase) {
       console.log("[Gigaverse] 🔄 Run activa encontrada, continuando...");
     } else {
-      // Iniciamos nueva run
       console.log("[Gigaverse] ▶️ Iniciando nueva run...");
       const startData = await startRun(actionToken);
       actionToken     = startData?.data?.actionToken
@@ -99,8 +96,8 @@ export async function runGigaverseDungeon() {
     while (moveIndex < 30) {
       await sleep(1200);
       const { res, action } = await playMove(actionToken, moveIndex);
+      console.log("[Gigaverse] RAW:", JSON.stringify(res));
       const { hp, result, nextToken, isOver } = extractGameInfo(res);
-
       console.log(`[Gigaverse] Move ${moveIndex + 1}: ${action.toUpperCase()} → ${result} | HP: ${hp}`);
 
       if (result === "win")  totalWins++;
