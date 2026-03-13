@@ -2,6 +2,7 @@ import fetch from "node-fetch";
 
 const GIGA_BASE = "https://gigaverse.io";
 const MOVES     = ["rock", "scissors", "paper"];
+const BASE_DATA = { consumables: [], itemId: 0, expectedAmount: 0, index: 0, isJuiced: false, gearInstanceIds: [] };
 
 async function gigaFetch(path, body, method = "POST") {
   const jwt = process.env.GIGAVERSE_JWT;
@@ -27,24 +28,33 @@ async function getDungeonState() {
   return await gigaFetch("/api/game/dungeon/state", null, "GET");
 }
 
-async function startRun(actionToken) {
+async function startRun() {
   return await gigaFetch("/api/game/dungeon/action", {
-    action:      "start",
-    actionToken: actionToken,
+    action:      "start_run",
+    actionToken: "",
     dungeonId:   1,
-    data:        { consumables: [], itemId: 0, index: 0 },
+    data:        BASE_DATA,
   });
 }
 
-async function playMove(actionToken, moveIndex, dungeonId) {
+async function playMove(actionToken, moveIndex) {
   const action = MOVES[moveIndex % MOVES.length];
   const res = await gigaFetch("/api/game/dungeon/action", {
     action,
     actionToken,
-    dungeonId,
-    data: {},
+    dungeonId: 0,
+    data:      BASE_DATA,
   });
   return { res, action };
+}
+
+async function pickLoot(actionToken) {
+  return await gigaFetch("/api/game/dungeon/action", {
+    action:      "loot_one",
+    actionToken,
+    dungeonId:   0,
+    data:        BASE_DATA,
+  });
 }
 
 export async function runGigaverseDungeon() {
@@ -58,28 +68,21 @@ export async function runGigaverseDungeon() {
   try {
     const state     = await getDungeonState();
     const activeRun = state?.data?.run;
-    let actionToken = state?.data?.actionToken ?? 0;
-
-    // Obtenemos el dungeonId real de la run activa o del entity
-    let dungeonId = activeRun?.DUNGEON_ID_CID
-                 ?? state?.data?.entity?.DUNGEON_ID_CID
-                 ?? 1;
-
-    console.log("[Gigaverse] 🗺️ dungeonId:", dungeonId, "| actionToken:", actionToken);
+    let actionToken = state?.data?.actionToken ?? "";
 
     if (activeRun && !activeRun.lootPhase) {
       console.log("[Gigaverse] 🔄 Run activa encontrada, continuando...");
+    } else if (activeRun && activeRun.lootPhase) {
+      console.log("[Gigaverse] 🎁 Loot phase activa, eligiendo loot...");
+      const lootRes = await pickLoot(actionToken);
+      actionToken   = lootRes?.data?.actionToken ?? lootRes?.actionToken ?? actionToken;
+      console.log("[Gigaverse] ✅ Loot elegido, actionToken:", actionToken);
     } else {
       console.log("[Gigaverse] ▶️ Iniciando nueva run...");
-      const startData = await startRun(actionToken);
-      console.log("[Gigaverse] startRun response:", JSON.stringify(startData));
-      actionToken = startData?.data?.actionToken
-                 ?? startData?.actionToken
-                 ?? actionToken;
-      dungeonId   = startData?.data?.run?.DUNGEON_ID_CID
-                 ?? startData?.data?.entity?.DUNGEON_ID_CID
-                 ?? dungeonId;
-      console.log("[Gigaverse] ⚔️ Run iniciada | dungeonId:", dungeonId, "| actionToken:", actionToken);
+      const startData = await startRun();
+      console.log("[Gigaverse] startRun:", JSON.stringify(startData));
+      actionToken = startData?.data?.actionToken ?? startData?.actionToken ?? actionToken;
+      console.log("[Gigaverse] ⚔️ Run iniciada, actionToken:", actionToken);
     }
 
     let moveIndex = 0;
@@ -89,8 +92,8 @@ export async function runGigaverseDungeon() {
 
     while (moveIndex < 30) {
       await sleep(1500);
-      const { res, action } = await playMove(actionToken, moveIndex, dungeonId);
-      console.log("[Gigaverse] RAW:", JSON.stringify(res));
+      const { res, action } = await playMove(actionToken, moveIndex);
+      console.log("[Gigaverse] RAW:", JSON.stringify(res).substring(0, 300));
 
       const run       = res?.data?.run ?? res?.run ?? {};
       const players   = run?.players ?? [];
@@ -101,17 +104,14 @@ export async function runGigaverseDungeon() {
       const result    = iWon ? "win" : iLost ? "lose" : "?";
       const nextToken = res?.data?.actionToken ?? res?.actionToken ?? null;
       const success   = res?.success !== false;
-      const isOver    = run?.lootPhase === true || me?.health?.current === 0;
+      const lootPhase = run?.lootPhase === true;
 
       if (nextToken) actionToken = nextToken;
 
       if (!success) {
         failCount++;
         console.log(`[Gigaverse] ⚠️ Falló intento ${failCount}, token: ${actionToken}`);
-        if (failCount >= 3) {
-          console.log("[Gigaverse] ❌ Abortando");
-          break;
-        }
+        if (failCount >= 3) { console.log("[Gigaverse] ❌ Abortando"); break; }
         continue;
       }
 
@@ -120,7 +120,21 @@ export async function runGigaverseDungeon() {
 
       if (result === "win")  totalWins++;
       if (result === "lose") totalLoss++;
-      if (isOver) { console.log("[Gigaverse] 🏁 Run terminada"); break; }
+
+      // Si entramos en loot phase, elegimos loot y continuamos
+      if (lootPhase) {
+        console.log("[Gigaverse] 🎁 Eligiendo loot...");
+        await sleep(1000);
+        const lootRes = await pickLoot(actionToken);
+        const newToken = lootRes?.data?.actionToken ?? lootRes?.actionToken ?? null;
+        if (newToken) actionToken = newToken;
+        console.log("[Gigaverse] ✅ Loot elegido");
+      }
+
+      if (me?.health?.current === 0) {
+        console.log("[Gigaverse] 💀 Rocky murió");
+        break;
+      }
 
       moveIndex++;
     }
