@@ -74,7 +74,6 @@ export async function runGigaverseDungeon() {
 
     console.log("[Gigaverse] 📋 actionToken:", actionToken, "| run:", !!activeRun, "| loot:", activeRun?.lootPhase);
 
-    // Resync si hay run pero token inválido
     if (activeRun && !actionToken) {
       console.log("[Gigaverse] 🔄 Resyncing...");
       await sleep(3000);
@@ -84,20 +83,16 @@ export async function runGigaverseDungeon() {
       console.log("[Gigaverse] 📋 Post-resync token:", actionToken);
     }
 
-    // Loot phase activa al arrancar
     if (activeRun && activeRun.lootPhase) {
       console.log("[Gigaverse] 🎁 Loot phase al arrancar...");
       const lootRes = await pickLoot(actionToken);
       actionToken   = lootRes?.data?.actionToken ?? lootRes?.actionToken ?? actionToken;
       await sleep(2000);
-      // Resync después del loot
       state       = await getDungeonState();
       activeRun   = state?.data?.run;
       actionToken = state?.data?.actionToken ?? actionToken;
       console.log("[Gigaverse] ✅ Loot + resync, token:", actionToken);
-    }
-    // Sin run — iniciar nueva
-    else if (!activeRun || !actionToken) {
+    } else if (!activeRun || !actionToken) {
       console.log("[Gigaverse] ▶️ Iniciando nueva run...");
       const startData = await startRun();
       actionToken     = startData?.data?.actionToken ?? startData?.actionToken ?? "";
@@ -122,13 +117,11 @@ export async function runGigaverseDungeon() {
       const players   = run?.players ?? [];
       const me        = players[0] ?? {};
       const hp        = me?.health?.current ?? "?";
-      const iWon      = lootPhase === true;
-      const iLost     = isDead === true;
-      const result    = iWon ? "win" : iLost ? "lose" : "fighting";
       const nextToken = res?.data?.actionToken ?? res?.actionToken ?? null;
       const success   = res?.success !== false;
       const lootPhase = run?.lootPhase === true;
       const isDead    = me?.health?.current === 0;
+      const result    = lootPhase ? "win" : isDead ? "lose" : "fighting";
 
       if (nextToken) actionToken = nextToken;
       if (me?.rock) currentMe = me;
@@ -150,13 +143,11 @@ export async function runGigaverseDungeon() {
       if (lootPhase) {
         console.log("[Gigaverse] 🎁 Eligiendo loot...");
         await sleep(1000);
-        const lootRes = await pickLoot(actionToken);
+        const lootRes  = await pickLoot(actionToken);
         console.log("[Gigaverse] LOOT:", JSON.stringify(lootRes).substring(0, 150));
-        
-        // Resync completo después del loot
         await sleep(2000);
-        const newState    = await getDungeonState();
-        const newToken    = newState?.data?.actionToken ?? lootRes?.data?.actionToken ?? lootRes?.actionToken ?? null;
+        const newState = await getDungeonState();
+        const newToken = newState?.data?.actionToken ?? lootRes?.data?.actionToken ?? lootRes?.actionToken ?? null;
         if (newToken) actionToken = newToken;
         const newMe = newState?.data?.run?.players?.[0];
         if (newMe) currentMe = newMe;
