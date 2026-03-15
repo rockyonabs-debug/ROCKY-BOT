@@ -68,21 +68,27 @@ export async function runGigaverseDungeon() {
   try {
     const state     = await getDungeonState();
     const activeRun = state?.data?.run;
-    let actionToken = state?.data?.actionToken ?? "";
+    let actionToken = state?.data?.actionToken;
 
-    if (activeRun && !activeRun.lootPhase) {
-      console.log("[Gigaverse] 🔄 Run activa encontrada, continuando...");
-    } else if (activeRun && activeRun.lootPhase) {
+    console.log("[Gigaverse] 📋 State | actionToken:", actionToken, "| lootPhase:", activeRun?.lootPhase, "| run:", !!activeRun);
+
+    // Si hay loot phase activa, elegimos loot primero
+    if (activeRun && activeRun.lootPhase) {
       console.log("[Gigaverse] 🎁 Loot phase activa, eligiendo loot...");
-      const lootRes = await pickLoot(actionToken);
-      actionToken   = lootRes?.data?.actionToken ?? lootRes?.actionToken ?? actionToken;
-      console.log("[Gigaverse] ✅ Loot elegido, actionToken:", actionToken);
-    } else {
+      const lootRes  = await pickLoot(actionToken);
+      console.log("[Gigaverse] LOOT RAW:", JSON.stringify(lootRes).substring(0, 400));
+      actionToken    = lootRes?.data?.actionToken ?? lootRes?.actionToken ?? actionToken;
+      console.log("[Gigaverse] ✅ Loot elegido, token:", actionToken);
+    }
+    // Si no hay token válido o no hay run, iniciamos nueva
+    else if (!activeRun || !actionToken) {
       console.log("[Gigaverse] ▶️ Iniciando nueva run...");
       const startData = await startRun();
-      console.log("[Gigaverse] startRun:", JSON.stringify(startData));
-      actionToken = startData?.data?.actionToken ?? startData?.actionToken ?? actionToken;
-      console.log("[Gigaverse] ⚔️ Run iniciada, actionToken:", actionToken);
+      console.log("[Gigaverse] startRun RAW:", JSON.stringify(startData).substring(0, 300));
+      actionToken     = startData?.data?.actionToken ?? startData?.actionToken ?? "";
+      console.log("[Gigaverse] ⚔️ Run iniciada, token:", actionToken);
+    } else {
+      console.log("[Gigaverse] 🔄 Run activa, token:", actionToken);
     }
 
     let moveIndex = 0;
@@ -93,7 +99,6 @@ export async function runGigaverseDungeon() {
     while (moveIndex < 30) {
       await sleep(1500);
       const { res, action } = await playMove(actionToken, moveIndex);
-      console.log("[Gigaverse] RAW:", JSON.stringify(res).substring(0, 300));
 
       const run       = res?.data?.run ?? res?.run ?? {};
       const players   = run?.players ?? [];
@@ -102,10 +107,10 @@ export async function runGigaverseDungeon() {
       const iWon      = me?.thisPlayerWin ?? false;
       const iLost     = players[1]?.thisPlayerWin ?? false;
       const result    = iWon ? "win" : iLost ? "lose" : "?";
-      const nextToken = res?.data?.actionToken ?? res?.actionToken ?? res?.actionToken ?? null;
-console.log("[Gigaverse] nextToken:", nextToken);
+      const nextToken = res?.data?.actionToken ?? res?.actionToken ?? null;
       const success   = res?.success !== false;
       const lootPhase = run?.lootPhase === true;
+      const isDead    = me?.health?.current === 0;
 
       if (nextToken) actionToken = nextToken;
 
@@ -113,7 +118,7 @@ console.log("[Gigaverse] nextToken:", nextToken);
         failCount++;
         console.log(`[Gigaverse] ⚠️ Falló intento ${failCount}, token: ${actionToken}`);
         if (failCount >= 5) { console.log("[Gigaverse] ❌ Abortando"); break; }
-await sleep(2000);
+        await sleep(2000);
         continue;
       }
 
@@ -123,18 +128,17 @@ await sleep(2000);
       if (result === "win")  totalWins++;
       if (result === "lose") totalLoss++;
 
-      // Si entramos en loot phase, elegimos loot y continuamos
       if (lootPhase) {
         console.log("[Gigaverse] 🎁 Eligiendo loot...");
         await sleep(1000);
-        const lootRes = await pickLoot(actionToken);
-console.log("[Gigaverse] LOOT RAW:", JSON.stringify(lootRes).substring(0, 400));
-const newToken = lootRes?.data?.actionToken ?? lootRes?.actionToken ?? null;
-if (newToken) actionToken = newToken;
-console.log("[Gigaverse] ✅ Loot elegido, nuevo token:", actionToken);
+        const lootRes  = await pickLoot(actionToken);
+        console.log("[Gigaverse] LOOT RAW:", JSON.stringify(lootRes).substring(0, 400));
+        const newToken = lootRes?.data?.actionToken ?? lootRes?.actionToken ?? null;
+        if (newToken) actionToken = newToken;
+        console.log("[Gigaverse] ✅ Loot elegido, token:", actionToken);
       }
 
-      if (me?.health?.current === 0) {
+      if (isDead) {
         console.log("[Gigaverse] 💀 Rocky murió");
         break;
       }
