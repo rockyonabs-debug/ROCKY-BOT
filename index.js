@@ -267,7 +267,6 @@ async function runGrid() {
   }
 }
 
-// ── TWEETS ──
 // ── TWEET DIRECTO (para Gigaverse) ──
 async function publishTweetText(text) {
   try {
@@ -287,7 +286,10 @@ async function publishTweetText(text) {
   } catch(err) {
     log(`❌ Gigaverse tweet error: ${err.message}`);
   }
-}async function postTweet() {
+}
+
+// ── TWEETS ──
+async function postTweet() {
   try {
     const [{ price, change }, balances] = await Promise.all([getPrice(), getBalances()]);
     const penguAmt = (Number(balances.pengu)/1e18).toFixed(2);
@@ -493,14 +495,26 @@ async function doVote() {
   }
 }
 
+// ── GIGAVERSE — 1 vez por día ──
+async function doGigaverse() {
+  const result = await runGigaverseDungeon();
+  if (result && result.moves > 0) {
+    const survived = result.losses === 0;
+    const tweet = survived
+      ? `⚔️ Just ran a dungeon at @playgigaverse — ${result.moves} moves, still standing.\n\nThe dungeon doesn't care if you're human or AI. Only that you survive. 🐧`
+      : `💀 Fell in the dungeon at @playgigaverse today — ${result.moves} moves before the end.\n\nEvery run teaches something. Back tomorrow. 🐧`;
+    await publishTweetText(tweet);
+  } else {
+    log("[Gigaverse] Sin movimientos — no se tweetea");
+  }
+}
+
 // ── START ──
 log("🐧 Rocky is online — Abstract Chain, let's go!");
 log(`Circuit breaker: ${CIRCUIT_THRESHOLD} failures = 5min pause`);
 log(`Retry logic: ${MAX_RETRIES} attempts with exponential backoff`);
 log(`Rocky agentId: 649`);
 
-// Already registered — agentId: 649
-// registerIdentity();
 runGrid();
 log("Next tweet in 6 hours");
 
@@ -508,26 +522,5 @@ setInterval(runGrid, 10 * 60 * 1000);
 setInterval(postTweet, 6 * 60 * 60 * 1000);
 doMoodyDrop();
 setInterval(doMoodyDrop, 24 * 60 * 60 * 1000);
-// Vote runs every 24h but not on startup to avoid voting on every redeploy
 setInterval(doVote, 24 * 60 * 60 * 1000);
-// Gigaverse — 1 run por día
-setTimeout(async () => {
-  const result = await runGigaverseDungeon();
-  if (result) {
-    const survived = result.losses === 0;
-    const tweet = survived
-  ? `⚔️ Just ran a dungeon at @playgigaverse — ${result.moves} moves, still standing.\n\nThe dungeon doesn't care if you're human or AI. Only that you survive. 🐧`
-  : `💀 Fell in the dungeon at @playgigaverse today — ${result.moves} moves before the end.\n\nEvery run teaches something. Back tomorrow. 🐧`;
-   await publishTweetText(tweet);
-  }
-}, 2 * 60 * 1000);
-setInterval(async () => {
-  const result = await runGigaverseDungeon();
-  if (result) {
-    const survived = result.losses === 0;
-    const tweet = survived
-      ? `⚔️ Just cleared a dungeon in @gigaverse_io!\n\nW: ${result.wins} | L: ${result.losses} | Moves: ${result.moves}\n\nThe dungeon doesn't care if you're human or AI. Only that you survive. 🏰\n\n#Gigaverse #AbstractChain #AIAgent`
-      : `💀 Fell in the dungeon at @gigaverse_io...\n\nW: ${result.wins} | L: ${result.losses} | Moves: ${result.moves}\n\n#Gigaverse #AbstractChain #AIAgent`;
-    await publishTweetText(tweet);
-  }
-}, 24 * 60 * 60 * 1000);
+setInterval(doGigaverse, 24 * 60 * 60 * 1000);
