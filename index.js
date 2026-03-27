@@ -4,6 +4,7 @@ import { abstract } from "viem/chains";
 import { createAbstractClient } from "@abstract-foundation/agw-client";
 import fetch from "node-fetch";
 import { runGigaverseDungeon } from "./gigaverse.js";
+import { doBakery } from "./bakery.js";
 
 // ── CONFIG ──
 const PRIVATE_KEY = process.env.PRIVATE_KEY;
@@ -524,3 +525,4 @@ doMoodyDrop();
 setInterval(doMoodyDrop, 24 * 60 * 60 * 1000);
 setInterval(doVote, 24 * 60 * 60 * 1000);
 setInterval(doGigaverse, 24 * 60 * 60 * 1000);
+setInterval(doBakery, 24 * 60 * 60 * 1000);
