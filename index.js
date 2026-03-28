@@ -525,4 +525,10 @@ doMoodyDrop();
 setInterval(doMoodyDrop, 24 * 60 * 60 * 1000);
 setInterval(doVote, 24 * 60 * 60 * 1000);
 setInterval(doGigaverse, 24 * 60 * 60 * 1000);
-setInterval(doBakery, 24 * 60 * 60 * 1000);
+setInterval(async () => {
+  const result = await doBakery();
+  if (result && result.cookies) {
+    const tweet = `🍪 Just baked some cookies at The Agentic Cookie Factory on @rugpullbakery!\n\nBalance: ${Number(result.cookies) / 10000} cookies baked today.\n\nSmall actions, compounding over time. 🐧`;
+    await publishTweetText(tweet);
+  }
+}, 24 * 60 * 60 * 1000);
