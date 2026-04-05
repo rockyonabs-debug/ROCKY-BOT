@@ -16,10 +16,11 @@ async function gigaFetch(path, body, method = "POST") {
     body: body ? JSON.stringify(body) : undefined,
   });
   const text = await res.text();
+  if (text.includes("<!DOCTYPE")) throw new Error("JWT expirado — respuesta HTML");
   try {
     return JSON.parse(text);
   } catch(e) {
-    throw new Error(`Not JSON: ${text.substring(0, 300)}`);
+    throw new Error(`Not JSON: ${text.substring(0, 200)}`);
   }
 }
 
@@ -29,7 +30,7 @@ async function getDungeonState() {
 
 async function startRun() {
   return await gigaFetch("/api/game/dungeon/action", {
-    action: "start_run", actionToken: "", dungeonId: 1, data: BASE_DATA,
+    action: "start_run", actionToken: 0, dungeonId: 1, data: BASE_DATA,
   });
 }
 
@@ -40,10 +41,20 @@ async function pickLoot(actionToken) {
 }
 
 async function playMove(actionToken, action) {
-  const res = await gigaFetch("/api/game/dungeon/action", {
+  return await gigaFetch("/api/game/dungeon/action", {
     action, actionToken, dungeonId: 0, data: BASE_DATA,
   });
-  return res;
+}
+
+function chooseBestMove(me) {
+  const moves = [
+    { name: "rock",     c: me?.rock?.currentCharges    ?? 1 },
+    { name: "scissors", c: me?.scissor?.currentCharges ?? 1 },
+    { name: "paper",    c: me?.paper?.currentCharges   ?? 1 },
+  ];
+  const available = moves.filter(m => m.c > 0);
+  if (available.length === 0) return "rock";
+  return available.sort((a,b) => b.c - a.c)[0].name;
 }
 
 export async function runGigaverseDungeon() {
@@ -58,96 +69,80 @@ export async function runGigaverseDungeon() {
     // 1. Estado actual
     const state     = await getDungeonState();
     const activeRun = state?.data?.run;
-    let actionToken = state?.data?.actionToken;
+    let actionToken = state?.data?.actionToken ?? 0;
     let currentMe   = activeRun?.players?.[0] ?? {};
 
     console.log("[Gigaverse] 📋 token:", actionToken, "| run:", !!activeRun, "| loot:", activeRun?.lootPhase);
 
-    // 2. Si hay loot pendiente, elegirlo
+    // 2. Loot pendiente
     if (activeRun && activeRun.lootPhase) {
-      console.log("[Gigaverse] 🎁 Loot phase...");
-      const lr = await pickLoot(actionToken);
+      console.log("[Gigaverse] 🎁 Loot pendiente...");
+      const lr    = await pickLoot(actionToken);
       actionToken = lr?.data?.actionToken ?? lr?.actionToken ?? actionToken;
-      currentMe   = lr?.data?.run?.players?.[0] ?? currentMe;
+      if (lr?.data?.run?.players?.[0]) currentMe = lr.data.run.players[0];
+      console.log("[Gigaverse] ✅ Loot elegido, token:", actionToken);
     }
-    // 3. Si no hay run activa, iniciar una
+    // 3. Sin run activa — iniciar nueva
     else if (!activeRun || !actionToken) {
-      console.log("[Gigaverse] ▶️ Iniciando run...");
-      const sd = await startRun();
-      console.log("[Gigaverse] START RAW:", JSON.stringify(sd).substring(0, 500));
-      actionToken = sd?.data?.actionToken ?? sd?.actionToken ?? "";
-      currentMe   = sd?.data?.run?.players?.[0] ?? {};
+      console.log("[Gigaverse] ▶️ Iniciando nueva run...");
+      const sd    = await startRun();
+      console.log("[Gigaverse] START:", JSON.stringify(sd).substring(0, 300));
+      actionToken = sd?.data?.actionToken ?? sd?.actionToken ?? 0;
+      if (sd?.data?.run?.players?.[0]) currentMe = sd.data.run.players[0];
+      console.log("[Gigaverse] ⚔️ Run iniciada, token:", actionToken);
+    } else {
+      console.log("[Gigaverse] 🔄 Run activa, token:", actionToken);
     }
 
     let moveIndex = 0;
     let totalWins = 0;
     let totalLoss = 0;
     let failCount = 0;
-    const MOVES = ["rock", "scissors", "paper"];
 
     while (moveIndex < 50) {
       await sleep(1500);
 
-      // Elegir movimiento según cargas disponibles
-      const charges = [
-        { name: "rock",     c: currentMe?.rock?.currentCharges    ?? 1 },
-        { name: "scissors", c: currentMe?.scissor?.currentCharges ?? 1 },
-        { name: "paper",    c: currentMe?.paper?.currentCharges   ?? 1 },
-      ];
-      const available = charges.filter(m => m.c > 0);
-      const move = available.length > 0
-        ? available.sort((a,b) => b.c - a.c)[0].name
-        : MOVES[moveIndex % 3];
-
-      const res = await playMove(actionToken, move);
-
-      // Log RAW siempre para debug
-      console.log(`[Gigaverse] RAW move ${moveIndex+1}:`, JSON.stringify(res).substring(0, 500));
+      const move = chooseBestMove(currentMe);
+      const res  = await playMove(actionToken, move);
 
       const success   = res?.success !== false;
       const nextToken = res?.data?.actionToken ?? res?.actionToken ?? null;
+      const run       = res?.data?.run ?? {};
+      const players   = run?.players ?? [];
+      const me        = players[0] ?? {};
+      const hp        = me?.health?.current ?? "?";
+      const loot      = run?.lootPhase === true;
+      const dead      = typeof me?.health?.current === "number" && me.health.current === 0;
+      const result    = loot ? "win" : dead ? "lose" : "fighting";
 
       if (nextToken) actionToken = nextToken;
+      if (me?.rock)  currentMe  = me;
 
       if (!success) {
         failCount++;
-        console.log(`[Gigaverse] ⚠️ Falló ${failCount}/3`);
-        if (failCount >= 3) break;
+        console.log(`[Gigaverse] ⚠️ Falló ${failCount}/3, token: ${actionToken}`);
+        if (failCount >= 3) { console.log("[Gigaverse] ❌ Abortando"); break; }
         await sleep(2000);
         continue;
       }
 
       failCount = 0;
-
-      // Extraer datos del run — probamos múltiples rutas
-      const run     = res?.data?.run ?? res?.run ?? {};
-      const players = run?.players ?? [];
-      const me      = players[0] ?? {};
-      const enemy   = players[1] ?? {};
-      const hp      = me?.health?.current ?? "?";
-      const loot    = run?.lootPhase === true;
-      const dead    = me?.health?.current === 0;
-      const result  = loot ? "win" : dead ? "lose" : "fighting";
-
-      if (me?.rock) currentMe = me;
-
       console.log(`[Gigaverse] Move ${moveIndex+1}: ${move.toUpperCase()} → ${result} | HP: ${hp} | R:${me?.rock?.currentCharges} S:${me?.scissor?.currentCharges} P:${me?.paper?.currentCharges}`);
 
-      if (result === "win")  { totalWins++; }
-      if (result === "lose") { totalLoss++; }
+      if (result === "win")  totalWins++;
+      if (result === "lose") totalLoss++;
 
       if (loot) {
-        console.log("[Gigaverse] 🎁 Loot...");
+        console.log("[Gigaverse] 🎁 Eligiendo loot...");
         await sleep(1000);
-        const lr = await pickLoot(actionToken);
-        console.log("[Gigaverse] LOOT RAW:", JSON.stringify(lr).substring(0, 300));
-        const nt = lr?.data?.actionToken ?? lr?.actionToken ?? null;
-        if (nt) actionToken = nt;
-        const nm = lr?.data?.run?.players?.[0];
-        if (nm) currentMe = nm;
+        const lr       = await pickLoot(actionToken);
+        const newToken = lr?.data?.actionToken ?? lr?.actionToken ?? null;
+        if (newToken) actionToken = newToken;
+        if (lr?.data?.run?.players?.[0]) currentMe = lr.data.run.players[0];
+        console.log("[Gigaverse] ✅ Loot elegido, token:", actionToken);
       }
 
-      if (dead) { console.log("[Gigaverse] 💀 Muerto"); break; }
+      if (dead) { console.log("[Gigaverse] 💀 Rocky murió"); break; }
 
       moveIndex++;
     }
