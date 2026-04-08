@@ -67,6 +67,9 @@ async function doGigaverse() {
 // ── START ──
 log("🐧 Rocky is online — Abstract Chain, let's go!");
 log("Rocky agentId: 649");
+// Puerto mínimo para Render
+import { createServer } from "http";
+createServer((req, res) => res.end("Rocky online")).listen(process.env.PORT || 3000);
 
 runGrid();
 setTimeout(doGigaverse, 2 * 60 * 1000);
