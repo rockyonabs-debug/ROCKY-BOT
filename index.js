@@ -3,6 +3,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import { abstract } from "viem/chains";
 import { createAbstractClient } from "@abstract-foundation/agw-client";
 import { runGigaverseDungeon } from "./gigaverse.js";
+import { createServer } from "http";
 
 const RPC_URL = "https://api.mainnet.abs.xyz";
 const PRIVATE_KEY = process.env.PRIVATE_KEY;
@@ -14,6 +15,9 @@ const account = privateKeyToAccount(PRIVATE_KEY);
 function log(msg) {
   console.log(`[${new Date().toISOString()}] ${msg}`);
 }
+
+// ── SERVIDOR HTTP para Render ──
+createServer((req, res) => res.end("Rocky online")).listen(process.env.PORT || 3000);
 
 // ── GRID BOT ──
 async function getPrice() {
@@ -67,9 +71,6 @@ async function doGigaverse() {
 // ── START ──
 log("🐧 Rocky is online — Abstract Chain, let's go!");
 log("Rocky agentId: 649");
-// Puerto mínimo para Render
-import { createServer } from "http";
-createServer((req, res) => res.end("Rocky online")).listen(process.env.PORT || 3000);
 
 runGrid();
 setTimeout(doGigaverse, 2 * 60 * 1000);
