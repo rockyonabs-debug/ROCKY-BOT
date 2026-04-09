@@ -1,162 +1,151 @@
 import fetch from "node-fetch";
 
-const GIGA_BASE = "https://gigaverse.io";
-const BASE_DATA = { consumables: [], itemId: 0, expectedAmount: 0, index: 0, isJuiced: false, gearInstanceIds: [] };
+const GIGA_BASE = "https://gigaverse.io/api";
+const JWT = () => process.env.GIGAVERSE_JWT;
 
 async function gigaFetch(path, body, method = "POST") {
-  const jwt = process.env.GIGAVERSE_JWT;
   const res = await fetch(`${GIGA_BASE}${path}`, {
     method,
     headers: {
-      "Content-Type":  "application/json",
-      "Authorization": `Bearer ${jwt}`,
-      "origin":        "https://gigaverse.io",
-      "referer":       "https://gigaverse.io/",
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${JWT()}`,
+      "origin": "https://gigaverse.io",
+      "referer": "https://gigaverse.io/",
     },
     body: body ? JSON.stringify(body) : undefined,
   });
   const text = await res.text();
   if (text.includes("<!DOCTYPE")) throw new Error("JWT expirado — respuesta HTML");
-  try {
-    return JSON.parse(text);
-  } catch(e) {
-    throw new Error(`Not JSON: ${text.substring(0, 200)}`);
+  let json;
+  try { json = JSON.parse(text); } catch(e) { throw new Error(`Not JSON: ${text.substring(0, 200)}`); }
+  if (!res.ok) {
+    // Intentar extraer token del error (ej: "Invalid action token X != Y")
+    const match = text.match(/Invalid action token \d+ != (\d+)/);
+    if (match) json._recoveryToken = match[1];
+    json._status = res.status;
   }
+  return json;
 }
 
-async function getDungeonState() {
-  return await gigaFetch("/api/game/dungeon/state", null, "GET");
+async function getState() {
+  return await gigaFetch("/game/dungeon/state", null, "GET");
 }
 
-async function startRun() {
-  return await gigaFetch("/api/game/dungeon/action", {
-    action: "start_run", actionToken: 0, dungeonId: 1, data: BASE_DATA,
+async function startRun(dungeonId = 1) {
+  return await gigaFetch("/game/dungeon/action", {
+    action: "start_run",
+    dungeonId,
+    actionToken: "",
+    data: { consumables: [], itemId: 0, expectedAmount: 0, index: 0, isJuiced: false, gearInstanceIds: [] }
   });
 }
 
-async function pickLoot(actionToken) {
-  return await gigaFetch("/api/game/dungeon/action", {
-    action: "loot_one", actionToken, dungeonId: 0, data: BASE_DATA,
+async function doMove(action, actionToken, dungeonId) {
+  return await gigaFetch("/game/dungeon/action", {
+    action,
+    dungeonId,
+    actionToken,
+    data: { consumables: [], itemId: 0, expectedAmount: 0, index: 0, isJuiced: false, gearInstanceIds: [] }
   });
 }
 
-async function playMove(actionToken, action) {
-  return await gigaFetch("/api/game/dungeon/action", {
-    action, actionToken, dungeonId: 0, data: BASE_DATA,
+async function doLoot(actionToken, dungeonId) {
+  return await gigaFetch("/game/dungeon/action", {
+    action: "loot_one",
+    dungeonId,
+    actionToken,
+    data: { consumables: [], itemId: 0, expectedAmount: 0, index: 0, isJuiced: false, gearInstanceIds: [] }
   });
 }
 
-function chooseBestMove(me) {
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function chooseMoveByCharges(me) {
+  if (!me) return "rock";
   const moves = [
-    { name: "rock",     c: me?.rock?.currentCharges    ?? 1 },
-    { name: "scissors", c: me?.scissor?.currentCharges ?? 1 },
-    { name: "paper",    c: me?.paper?.currentCharges   ?? 1 },
+    { name: "rock",    c: me?.rock?.currentCharges    ?? 1 },
+    { name: "scissor", c: me?.scissor?.currentCharges ?? 1 },
+    { name: "paper",   c: me?.paper?.currentCharges   ?? 1 },
   ];
   const available = moves.filter(m => m.c > 0);
-  if (available.length === 0) return "rock";
+  if (!available.length) return "rock";
   return available.sort((a,b) => b.c - a.c)[0].name;
 }
 
 export async function runGigaverseDungeon() {
   console.log("[Gigaverse] 🏰 Rocky entering the dungeon...");
 
-  if (!process.env.GIGAVERSE_JWT) {
-    console.error("[Gigaverse] ❌ GIGAVERSE_JWT not set!");
-    return null;
-  }
-
   try {
-    // 1. Estado actual
-    const state     = await getDungeonState();
-    const activeRun = state?.data?.run;
-    let actionToken = state?.data?.actionToken ?? 0;
-    let currentMe   = activeRun?.players?.[0] ?? {};
+    // 1. Verificar estado actual
+    const state = await getState();
+    console.log("[Gigaverse] STATE RAW:", JSON.stringify(state).substring(0, 400));
 
-    console.log("[Gigaverse] 📋 token:", actionToken, "| run:", !!activeRun, "| loot:", activeRun?.lootPhase);
+    let run       = state?.data?.run;
+    let token     = state?.data?.actionToken ?? "";
+    let dungeonId = run?.dungeonId ?? run?.DUNGEON_ID_CID ?? 1;
+    let me        = run?.players?.[0] ?? {};
 
-    // 2. Loot pendiente
-    if (activeRun && activeRun.lootPhase) {
-      console.log("[Gigaverse] 🎁 Loot pendiente...");
-      const lr    = await pickLoot(actionToken);
-      actionToken = lr?.data?.actionToken ?? lr?.actionToken ?? actionToken;
-      if (lr?.data?.run?.players?.[0]) currentMe = lr.data.run.players[0];
-      console.log("[Gigaverse] ✅ Loot elegido, token:", actionToken);
+    // 2. Si hay loot pendiente, resolverlo
+    if (run && run.lootPhase === true) {
+      console.log("[Gigaverse] 🎁 Loot pendiente, eligiendo...");
+      const lr = await doLoot(token, dungeonId);
+      console.log("[Gigaverse] LOOT RAW:", JSON.stringify(lr).substring(0, 300));
+      token     = lr?.data?.actionToken ?? lr?.actionToken ?? token;
+      run       = lr?.data?.run ?? run;
+      me        = run?.players?.[0] ?? me;
     }
-    // 3. Sin run activa — iniciar nueva
-    else if (!activeRun || !actionToken) {
+
+    // 3. Si no hay run activa, iniciar una nueva
+    if (!run) {
       console.log("[Gigaverse] ▶️ Iniciando nueva run...");
-      const sd    = await startRun();
-      console.log("[Gigaverse] START:", JSON.stringify(sd).substring(0, 300));
-      actionToken = sd?.data?.actionToken ?? sd?.actionToken ?? 0;
-      if (sd?.data?.run?.players?.[0]) currentMe = sd.data.run.players[0];
-      console.log("[Gigaverse] ⚔️ Run iniciada, token:", actionToken);
+      const sr = await startRun(1);
+      console.log("[Gigaverse] START RAW:", JSON.stringify(sr).substring(0, 400));
+      
+      if (sr._status === 400 && sr._recoveryToken) {
+        console.log("[Gigaverse] 🔄 Recovery token:", sr._recoveryToken);
+        const sr2 = await startRun(1);
+        token     = sr2?.data?.actionToken ?? sr2?.actionToken ?? "";
+        run       = sr2?.data?.run ?? {};
+      } else {
+        token     = sr?.data?.actionToken ?? sr?.actionToken ?? "";
+        run       = sr?.data?.run ?? {};
+      }
+      
+      dungeonId = run?.dungeonId ?? run?.DUNGEON_ID_CID ?? 1;
+      me        = run?.players?.[0] ?? {};
+      console.log("[Gigaverse] ⚔️ Run iniciada | dungeonId:", dungeonId, "| token:", token);
     } else {
-      console.log("[Gigaverse] 🔄 Run activa, token:", actionToken);
+      console.log("[Gigaverse] 🔄 Run activa | dungeonId:", dungeonId, "| token:", token);
     }
 
-    let moveIndex = 0;
-    let totalWins = 0;
-    let totalLoss = 0;
-    let failCount = 0;
+    let wins = 0, losses = 0, moveIndex = 0, failCount = 0;
 
     while (moveIndex < 50) {
       await sleep(1500);
 
-      const move = chooseBestMove(currentMe);
-      const res  = await playMove(actionToken, move);
+      const move = chooseMoveByCharges(me);
+      const res  = await doMove(move, token, dungeonId);
 
-      const success   = res?.success !== false;
-      const nextToken = res?.data?.actionToken ?? res?.actionToken ?? null;
-      const run       = res?.data?.run ?? {};
-      const players   = run?.players ?? [];
-      const me        = players[0] ?? {};
-      const hp        = me?.health?.current ?? "?";
-      const loot      = run?.lootPhase === true;
-      const dead      = typeof me?.health?.current === "number" && me.health.current === 0;
-      const result    = loot ? "win" : dead ? "lose" : "fighting";
+      // Log RAW para debug
+      if (moveIndex < 3) {
+        console.log(`[Gigaverse] RAW move ${moveIndex+1}:`, JSON.stringify(res).substring(0, 400));
+      }
 
-      if (nextToken) actionToken = nextToken;
-      if (me?.rock)  currentMe  = me;
-
-      if (!success) {
+      // 400 recovery
+      if (res._status === 400) {
+        console.log("[Gigaverse] ⚠️ 400 — resyncing state...");
+        const st = await getState();
+        token     = st?.data?.actionToken ?? token;
+        run       = st?.data?.run ?? run;
+        me        = run?.players?.[0] ?? me;
+        dungeonId = run?.dungeonId ?? dungeonId;
         failCount++;
-        console.log(`[Gigaverse] ⚠️ Falló ${failCount}/3, token: ${actionToken}`);
-        if (failCount >= 3) { console.log("[Gigaverse] ❌ Abortando"); break; }
-        await sleep(2000);
+        if (failCount >= 3) { console.log("[Gigaverse] ❌ Demasiados errores, abortando"); break; }
         continue;
       }
 
       failCount = 0;
-      console.log(`[Gigaverse] Move ${moveIndex+1}: ${move.toUpperCase()} → ${result} | HP: ${hp} | R:${me?.rock?.currentCharges} S:${me?.scissor?.currentCharges} P:${me?.paper?.currentCharges}`);
 
-      if (result === "win")  totalWins++;
-      if (result === "lose") totalLoss++;
-
-      if (loot) {
-        console.log("[Gigaverse] 🎁 Eligiendo loot...");
-        await sleep(1000);
-        const lr       = await pickLoot(actionToken);
-        const newToken = lr?.data?.actionToken ?? lr?.actionToken ?? null;
-        if (newToken) actionToken = newToken;
-        if (lr?.data?.run?.players?.[0]) currentMe = lr.data.run.players[0];
-        console.log("[Gigaverse] ✅ Loot elegido, token:", actionToken);
-      }
-
-      if (dead) { console.log("[Gigaverse] 💀 Rocky murió"); break; }
-
-      moveIndex++;
-    }
-
-    const summary = { wins: totalWins, losses: totalLoss, moves: moveIndex };
-    console.log("[Gigaverse] 📊 Summary:", summary);
-    return summary;
-
-  } catch (err) {
-    console.error("[Gigaverse] ❌ Error:", err.message);
-    return null;
-  }
-}
-
-function sleep(ms) {
-  return new Promise((r) => setTimeout(r, ms));
-}
+      // Extraer datos
+      const newToken  = res?.data?.actionToken ?? res?.actionToken ?? null;
+      const newRun
