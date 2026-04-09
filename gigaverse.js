@@ -148,4 +148,43 @@ export async function runGigaverseDungeon() {
 
       // Extraer datos
       const newToken  = res?.data?.actionToken ?? res?.actionToken ?? null;
-      const newRun
+      const newRun    = res?.data?.run ?? res?.run ?? {};
+      const players   = newRun?.players ?? [];
+      const newMe     = players[0] ?? {};
+      const hp        = newMe?.health?.current ?? "?";
+      const lootPhase = newRun?.lootPhase === true;
+      const dead      = typeof newMe?.health?.current === "number" && newMe.health.current === 0;
+      const result    = lootPhase ? "WIN" : dead ? "DEAD" : "fighting";
+
+      if (newToken) token = newToken;
+      if (newMe?.rock) { me = newMe; dungeonId = newRun?.dungeonId ?? dungeonId; }
+
+      console.log(`[Gigaverse] Move ${moveIndex+1}: ${move.toUpperCase()} → ${result} | HP: ${hp} | R:${newMe?.rock?.currentCharges} S:${newMe?.scissor?.currentCharges} P:${newMe?.paper?.currentCharges}`);
+
+      if (lootPhase) {
+        wins++;
+        console.log("[Gigaverse] 🎁 Eligiendo loot...");
+        await sleep(1000);
+        const lr   = await doLoot(token, dungeonId);
+        const nt   = lr?.data?.actionToken ?? lr?.actionToken ?? null;
+        if (nt) token = nt;
+        const nm   = lr?.data?.run?.players?.[0];
+        if (nm) me = nm;
+        const nd   = lr?.data?.run?.dungeonId ?? dungeonId;
+        dungeonId  = nd;
+      }
+
+      if (dead) { losses++; console.log("[Gigaverse] 💀 Rocky murió"); break; }
+
+      moveIndex++;
+    }
+
+    const summary = { wins, losses, moves: moveIndex };
+    console.log("[Gigaverse] 📊 Summary:", summary);
+    return summary;
+
+  } catch(err) {
+    console.error("[Gigaverse] ❌ Error:", err.message);
+    return null;
+  }
+}
