@@ -5,6 +5,7 @@ import { createAbstractClient } from "@abstract-foundation/agw-client";
 import { createServer } from "http";
 import { runGigaverseDungeon } from "./gigaverse.js";
 import { doMoodyAssistants } from "./moody.js";
+import { activateAssistants } from "./moody-assistants.js";
 
 const RPC_URL = "https://api.mainnet.abs.xyz";
 const PRIVATE_KEY = process.env.PRIVATE_KEY;
@@ -66,6 +67,14 @@ async function doGigaverse() {
   }
 }
 
+async function doMoodyWakeUp() {
+  try {
+    await activateAssistants();
+  } catch (err) {
+    log(`❌ Moody wakeup error: ${err.message}`);
+  }
+}
+
 // ── START ──
 log("🐧 Rocky is online — Abstract Chain, let's go!");
 log("Rocky agentId: 649");
@@ -77,3 +86,4 @@ setInterval(runGrid, 10 * 60 * 1000);
 setInterval(doVote, 24 * 60 * 60 * 1000);
 setInterval(doGigaverse, 24 * 60 * 60 * 1000);
 setInterval(doMoodyAssistants, 12 * 60 * 60 * 1000);
+setInterval(doMoodyWakeUp, 12 * 60 * 60 * 1000);
