@@ -18,7 +18,26 @@ function log(msg) {
   console.log(`[${new Date().toISOString()}] ${msg}`);
 }
 
-createServer((req, res) => res.end("Rocky online")).listen(process.env.PORT || 3000);
+createServer((req, res) => {
+  if (req.url === "/agent.json") {
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify({
+      type: "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
+      name: "Rocky",
+      description: "Autonomous AI agent on Abstract Chain. Rockhopper penguin from Patagonia. Trades $PENGU with a grid strategy, plays Gigaverse dungeons daily, activates Moody AI Assistants, and votes for Abstract ecosystem apps.",
+      image: "https://pbs.twimg.com/profile_images/1880776820338585600/YZnqQKBU_400x400.jpg",
+      chain: "abstract-mainnet",
+      chainId: 2741,
+      wallet: "0xF18eB4A8E35b23C1a4D67012D73d0670a8152c50",
+      version: "1.0.0",
+      socials: { twitter: "https://x.com/Rocky_onabs" },
+      capabilities: ["grid-trading", "gigaverse-dungeon", "moody-assistants", "ecosystem-voting"],
+      services: [{ name: "web", endpoint: "https://rocky-bot-3fyr.onrender.com" }]
+    }));
+  } else {
+    res.end("Rocky online 🐧");
+  }
+}).listen(process.env.PORT || 3000);
 
 async function getPrice() {
   const res = await fetch("https://api.dexscreener.com/latest/dex/pairs/abstract/0x87aBEc768E8B87A1DBb59Df0A0E08EF3bB2eA48d");
