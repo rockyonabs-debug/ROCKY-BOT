@@ -2,8 +2,9 @@ import { createPublicClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { abstract } from "viem/chains";
 import { createAbstractClient } from "@abstract-foundation/agw-client";
-import { runGigaverseDungeon } from "./gigaverse.js";
 import { createServer } from "http";
+import { runGigaverseDungeon } from "./gigaverse.js";
+import { deployMoodyBurner } from "./deploy-moody-burner.js";
 
 const RPC_URL = "https://api.mainnet.abs.xyz";
 const PRIVATE_KEY = process.env.PRIVATE_KEY;
@@ -16,14 +17,13 @@ function log(msg) {
   console.log(`[${new Date().toISOString()}] ${msg}`);
 }
 
-// ── SERVIDOR HTTP para Render ──
 createServer((req, res) => res.end("Rocky online")).listen(process.env.PORT || 3000);
 
-// ── GRID BOT ──
 async function getPrice() {
   const res = await fetch("https://api.dexscreener.com/latest/dex/pairs/abstract/0x87aBEc768E8B87A1DBb59Df0A0E08EF3bB2eA48d");
   if (!res.ok) throw new Error(`DexScreener HTTP ${res.status}`);
   const data = await res.json();
+  if (!data?.pair?.priceUsd) throw new Error("No price data");
   return parseFloat(data.pair.priceUsd);
 }
 
@@ -38,7 +38,6 @@ async function runGrid() {
   }
 }
 
-// ── VOTOS ──
 async function doVote() {
   try {
     log("🗳️ Voting...");
@@ -58,7 +57,6 @@ async function doVote() {
   }
 }
 
-// ── GIGAVERSE ──
 async function doGigaverse() {
   try {
     const result = await runGigaverseDungeon();
@@ -72,6 +70,7 @@ async function doGigaverse() {
 log("🐧 Rocky is online — Abstract Chain, let's go!");
 log("Rocky agentId: 649");
 
+deployMoodyBurner();
 runGrid();
 setTimeout(doGigaverse, 2 * 60 * 1000);
 setTimeout(doVote, 5 * 60 * 1000);
