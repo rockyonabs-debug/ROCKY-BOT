@@ -85,5 +85,4 @@ setTimeout(doGigaverse, 2 * 60 * 1000);
 setInterval(runGrid, 10 * 60 * 1000);
 setInterval(doVote, 24 * 60 * 60 * 1000);
 setInterval(doGigaverse, 24 * 60 * 60 * 1000);
-setInterval(doMoodyAssistants, 12 * 60 * 60 * 1000);
 setInterval(doMoodyWakeUp, 12 * 60 * 60 * 1000);
