@@ -25,8 +25,8 @@ async function refreshJWT() {
   });
   
   const data = await res.json();
-  if (data.token) {
-    cachedJWT = data.token;
+  if (data.jwt) {
+    cachedJWT = data.jwt;
     console.log("[Gigaverse] ✅ JWT renovado!");
     return true;
   }
