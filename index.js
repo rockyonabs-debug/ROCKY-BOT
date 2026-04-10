@@ -97,7 +97,23 @@ async function doMoodyWakeUp() {
 // ── START ──
 log("🐧 Rocky is online — Abstract Chain, let's go!");
 log("Rocky agentId: 649");
-
+// Actualizar agentURI onchain
+(async () => {
+  try {
+    const agwClient = await createAbstractClient({
+      signer: account, chain: abstract, transport: http(RPC_URL)
+    });
+    const hash = await agwClient.writeContract({
+      address: "0x8004C1f13C17680e2e5B65b3B22dd1F6b1a5F5A0",
+      abi: [{ name: "setAgentURI", type: "function", stateMutability: "nonpayable", inputs: [{ name: "agentId", type: "uint256" }, { name: "agentURI", type: "string" }], outputs: [] }],
+      functionName: "setAgentURI",
+      args: [649n, "https://rocky-bot-3fyr.onrender.com/agent.json"]
+    });
+    log(`✅ AgentURI updated! tx: ${hash}`);
+  } catch (err) {
+    log(`❌ AgentURI error: ${err.shortMessage || err.message}`);
+  }
+})();
 runGrid();
 setTimeout(doGigaverse, 2 * 60 * 1000);
 
