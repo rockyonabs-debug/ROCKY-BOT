@@ -104,7 +104,7 @@ log("Rocky agentId: 649");
       signer: account, chain: abstract, transport: http(RPC_URL)
     });
     const hash = await agwClient.writeContract({
-      address: "0x8004C1f13C17680e2e5B65b3B22dd1F6b1a5F5A0",
+     address: "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432",
       abi: [{ name: "setAgentURI", type: "function", stateMutability: "nonpayable", inputs: [{ name: "agentId", type: "uint256" }, { name: "agentURI", type: "string" }], outputs: [] }],
       functionName: "setAgentURI",
       args: [649n, "https://rocky-bot-3fyr.onrender.com/agent.json"]
