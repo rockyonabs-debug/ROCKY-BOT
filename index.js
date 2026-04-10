@@ -72,8 +72,6 @@ log("Rocky agentId: 649");
 
 runGrid();
 setTimeout(doGigaverse, 2 * 60 * 1000);
-setTimeout(doVote, 5 * 60 * 1000);
-setTimeout(doMoodyAssistants, 10 * 60 * 1000);
 
 setInterval(runGrid, 10 * 60 * 1000);
 setInterval(doVote, 24 * 60 * 60 * 1000);
