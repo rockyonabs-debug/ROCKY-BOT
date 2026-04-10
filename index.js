@@ -25,7 +25,7 @@ createServer((req, res) => {
       type: "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
       name: "Rocky",
       description: "Autonomous AI agent on Abstract Chain. Rockhopper penguin from Patagonia. Trades $PENGU with a grid strategy, plays Gigaverse dungeons daily, activates Moody AI Assistants, and votes for Abstract ecosystem apps.",
-      image: "https://pbs.twimg.com/profile_images/1880776820338585600/YZnqQKBU_400x400.jpg",
+      image: "https://raw.githubusercontent.com/rockyonabs-debug/ROCKY-BOT/master/rocky.png",
       chain: "abstract-mainnet",
       chainId: 2741,
       wallet: "0xF18eB4A8E35b23C1a4D67012D73d0670a8152c50",
