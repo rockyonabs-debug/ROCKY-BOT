@@ -4,6 +4,7 @@ import { privateKeyToAccount } from "viem/accounts";
 const GIGA_BASE = "https://gigaverse.io/api";
 const account = privateKeyToAccount(process.env.PRIVATE_KEY);
 
+// Siempre usar el JWT personal que tiene el personaje
 let cachedJWT = process.env.GIGAVERSE_JWT || "";
 
 async function refreshJWT() {
@@ -11,7 +12,7 @@ async function refreshJWT() {
   const timestamp = Date.now();
   const message = `Login to Gigaverse at ${timestamp}`;
   const signature = await account.signMessage({ message });
-  
+
   const res = await fetch(`${GIGA_BASE}/user/auth`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -23,14 +24,23 @@ async function refreshJWT() {
       agent_metadata: { type: "gigaverse-play-skill", model: "rocky-agent" }
     })
   });
-  
+
   const data = await res.json();
-  if (data.jwt) {
+  if (data.jwt && data.gameAccount?.canEnterGame) {
     cachedJWT = data.jwt;
-    console.log("[Gigaverse] ✅ JWT renovado!");
+    console.log("[Gigaverse] ✅ JWT renovado con personaje!");
     return true;
   }
-  console.log("[Gigaverse] ❌ Auth failed:", JSON.stringify(data));
+
+  // Si la wallet de Rocky no tiene personaje, usar JWT personal
+  console.log("[Gigaverse] ⚠️ Rocky no tiene personaje, usando JWT personal...");
+  if (process.env.GIGAVERSE_JWT) {
+    cachedJWT = process.env.GIGAVERSE_JWT;
+    console.log("[Gigaverse] ✅ Usando JWT personal de env");
+    return true;
+  }
+
+  console.log("[Gigaverse] ❌ No hay JWT válido disponible");
   return false;
 }
 
@@ -96,11 +106,11 @@ export async function runGigaverseDungeon() {
   console.log("[Gigaverse] 🏰 Rocky entering the dungeon...");
 
   try {
-    // 1. Verificar/renovar JWT
+    // 1. Verificar JWT actual
     const stateCheck = await getState();
     if (stateCheck._status === 401 || stateCheck.error === "Invalid token") {
       const ok = await refreshJWT();
-      if (!ok) { console.error("[Gigaverse] ❌ No se pudo renovar JWT"); return null; }
+      if (!ok) { console.error("[Gigaverse] ❌ No hay JWT válido"); return null; }
     }
 
     // 2. Estado actual
@@ -126,10 +136,23 @@ export async function runGigaverseDungeon() {
       console.log("[Gigaverse] ▶️ Iniciando nueva run...");
       const sr  = await startRun();
       console.log("[Gigaverse] START:", JSON.stringify(sr).substring(0, 300));
-      token     = sr?.data?.actionToken ?? sr?.actionToken ?? "";
-      run       = sr?.data?.run ?? {};
+      
+      if (sr._status === 400) {
+        console.log("[Gigaverse] ⚠️ start_run falló, JWT puede estar vencido, renovando...");
+        const ok = await refreshJWT();
+        if (!ok) return null;
+        const sr2 = await startRun();
+        console.log("[Gigaverse] START2:", JSON.stringify(sr2).substring(0, 300));
+        token     = sr2?.data?.actionToken ?? sr2?.actionToken ?? "";
+        run       = sr2?.data?.run ?? {};
+      } else {
+        token     = sr?.data?.actionToken ?? sr?.actionToken ?? "";
+        run       = sr?.data?.run ?? {};
+      }
+
       dungeonId = run?.dungeonId ?? run?.DUNGEON_ID_CID ?? 1;
       me        = run?.players?.[0] ?? {};
+      console.log("[Gigaverse] ⚔️ Run iniciada | dungeonId:", dungeonId, "| token:", token);
     } else {
       console.log("[Gigaverse] 🔄 Run activa | token:", token);
     }
@@ -142,14 +165,12 @@ export async function runGigaverseDungeon() {
       const move = chooseMoveByCharges(me);
       const res  = await doMove(move, token, dungeonId);
 
-      // 401 — renovar JWT y reintentar
       if (res._status === 401) {
-        console.log("[Gigaverse] 🔑 JWT expirado mid-run, renovando...");
+        console.log("[Gigaverse] 🔑 JWT expirado, renovando...");
         await refreshJWT();
         continue;
       }
 
-      // 400 — resync
       if (res._status === 400) {
         failCount++;
         console.log(`[Gigaverse] ⚠️ 400 error (${failCount}/3)`);
