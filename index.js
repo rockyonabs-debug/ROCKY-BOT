@@ -4,7 +4,7 @@ import { abstract } from "viem/chains";
 import { createAbstractClient } from "@abstract-foundation/agw-client";
 import { createServer } from "http";
 import { runGigaverseDungeon } from "./gigaverse.js";
-import { deployMoodyBurner } from "./deploy-moody-burner.js";
+import { doMoodyAssistants } from "./moody.js";
 
 const RPC_URL = "https://api.mainnet.abs.xyz";
 const PRIVATE_KEY = process.env.PRIVATE_KEY;
@@ -70,11 +70,12 @@ async function doGigaverse() {
 log("🐧 Rocky is online — Abstract Chain, let's go!");
 log("Rocky agentId: 649");
 
-deployMoodyBurner();
 runGrid();
 setTimeout(doGigaverse, 2 * 60 * 1000);
 setTimeout(doVote, 5 * 60 * 1000);
+setTimeout(doMoodyAssistants, 10 * 60 * 1000);
 
 setInterval(runGrid, 10 * 60 * 1000);
 setInterval(doVote, 24 * 60 * 60 * 1000);
 setInterval(doGigaverse, 24 * 60 * 60 * 1000);
+setInterval(doMoodyAssistants, 12 * 60 * 60 * 1000);
