@@ -88,36 +88,52 @@ async function doGigaverse() {
 
 async function doMoodyWakeUp() {
   try {
+    log("[Moody] 🔥 Iniciando burn + wakeup...");
+    await doMoodyAssistants();
     await activateAssistants();
+    log("[Moody] ✅ Ciclo completo");
   } catch (err) {
-    log(`❌ Moody wakeup error: ${err.message}`);
+    log(`❌ Moody error: ${err.message}`);
+  }
+}
+
+// ── Scheduler basado en hora UTC ──
+// Corre cada 10 minutos y decide qué tareas ejecutar
+const taskState = {
+  lastGigaverse: 0,
+  lastVote: 0,
+  lastMoody: 0,
+};
+
+async function scheduler() {
+  const now = Date.now();
+  const hour = new Date().getUTCHours();
+
+  // Grid siempre
+  await runGrid();
+
+  // Gigaverse — una vez por día a las 06:00 UTC
+  if (hour === 6 && now - taskState.lastGigaverse > 20 * 60 * 60 * 1000) {
+    taskState.lastGigaverse = now;
+    doGigaverse();
+  }
+
+  // Votos — una vez por día a las 07:00 UTC
+  if (hour === 7 && now - taskState.lastVote > 20 * 60 * 60 * 1000) {
+    taskState.lastVote = now;
+    doVote();
+  }
+
+  // Moody — dos veces por día a las 08:00 y 20:00 UTC
+  if ((hour === 8 || hour === 20) && now - taskState.lastMoody > 10 * 60 * 60 * 1000) {
+    taskState.lastMoody = now;
+    doMoodyWakeUp();
   }
 }
 
 // ── START ──
 log("🐧 Rocky is online — Abstract Chain, let's go!");
 log("Rocky agentId: 649");
-// Actualizar agentURI onchain
-(async () => {
-  try {
-    const agwClient = await createAbstractClient({
-      signer: account, chain: abstract, transport: http(RPC_URL)
-    });
-    const hash = await agwClient.writeContract({
-     address: "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432",
-      abi: [{ name: "setAgentURI", type: "function", stateMutability: "nonpayable", inputs: [{ name: "agentId", type: "uint256" }, { name: "agentURI", type: "string" }], outputs: [] }],
-      functionName: "setAgentURI",
-      args: [649n, "https://rocky-bot-3fyr.onrender.com/agent.json"]
-    });
-    log(`✅ AgentURI updated! tx: ${hash}`);
-  } catch (err) {
-    log(`❌ AgentURI error: ${err.shortMessage || err.message}`);
-  }
-})();
-runGrid();
-setTimeout(doGigaverse, 2 * 60 * 1000);
 
-setInterval(runGrid, 10 * 60 * 1000);
-setInterval(doVote, 24 * 60 * 60 * 1000);
-setInterval(doGigaverse, 24 * 60 * 60 * 1000);
-setInterval(doMoodyWakeUp, 12 * 60 * 60 * 1000);
+scheduler();
+setInterval(scheduler, 10 * 60 * 1000);
