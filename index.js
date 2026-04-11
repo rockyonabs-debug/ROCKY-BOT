@@ -18,6 +18,7 @@ function log(msg) {
   console.log(`[${new Date().toISOString()}] ${msg}`);
 }
 
+// Servidor HTTP
 createServer((req, res) => {
   if (req.url === "/agent.json") {
     res.setHeader("Content-Type", "application/json");
@@ -38,6 +39,11 @@ createServer((req, res) => {
     res.end("Rocky online 🐧");
   }
 }).listen(process.env.PORT || 3000);
+
+// Mantener Render despierto — FUERA del createServer
+setInterval(() => {
+  fetch("https://rocky-bot-3fyr.onrender.com").catch(() => {});
+}, 5 * 60 * 1000);
 
 async function getPrice() {
   const res = await fetch("https://api.dexscreener.com/latest/dex/pairs/abstract/0x87aBEc768E8B87A1DBb59Df0A0E08EF3bB2eA48d");
@@ -97,8 +103,6 @@ async function doMoodyWakeUp() {
   }
 }
 
-// ── Scheduler basado en hora UTC ──
-// Corre cada 10 minutos y decide qué tareas ejecutar
 const taskState = {
   lastGigaverse: 0,
   lastVote: 0,
@@ -109,22 +113,18 @@ async function scheduler() {
   const now = Date.now();
   const hour = new Date().getUTCHours();
 
-  // Grid siempre
   await runGrid();
 
-  // Gigaverse — una vez por día a las 06:00 UTC
   if (hour === 6 && now - taskState.lastGigaverse > 20 * 60 * 60 * 1000) {
     taskState.lastGigaverse = now;
     doGigaverse();
   }
 
-  // Votos — una vez por día a las 07:00 UTC
   if (hour === 7 && now - taskState.lastVote > 20 * 60 * 60 * 1000) {
     taskState.lastVote = now;
     doVote();
   }
 
-  // Moody — dos veces por día a las 08:00 y 20:00 UTC
   if ((hour === 15 || hour === 3) && now - taskState.lastMoody > 10 * 60 * 60 * 1000) {
     taskState.lastMoody = now;
     doMoodyWakeUp();
@@ -135,5 +135,6 @@ async function scheduler() {
 log("🐧 Rocky is online — Abstract Chain, let's go!");
 log("Rocky agentId: 649");
 
+setTimeout(doMoodyWakeUp, 2 * 60 * 1000);
 scheduler();
 setInterval(scheduler, 10 * 60 * 1000);
