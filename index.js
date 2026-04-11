@@ -125,7 +125,7 @@ async function scheduler() {
   }
 
   // Moody — dos veces por día a las 08:00 y 20:00 UTC
-  if ((hour === 8 || hour === 20) && now - taskState.lastMoody > 10 * 60 * 60 * 1000) {
+  if ((hour === 15 || hour === 3) && now - taskState.lastMoody > 10 * 60 * 60 * 1000) {
     taskState.lastMoody = now;
     doMoodyWakeUp();
   }
