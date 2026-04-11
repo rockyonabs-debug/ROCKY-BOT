@@ -1,7 +1,5 @@
 import fetch from "node-fetch";
 import { privateKeyToAccount } from "viem/accounts";
-import { createWalletClient, http } from "viem";
-import { abstract } from "viem/chains";
 
 const account = privateKeyToAccount(process.env.PRIVATE_KEY);
 const MOODY_AUTH_URL = "https://moody-auth-b7gubah0fsbsc2f3.westus-01.azurewebsites.net";
@@ -10,23 +8,27 @@ const ADDRESS = "0xaF7B17E7bbF5A21DeB480711959da0830A93199b";
 
 async function getNonce() {
   const res = await fetch(`${MOODY_AUTH_URL}/nonce`);
-  const data = await res.json();
+  const text = await res.text();
+  console.log("[MoodyAuth] Nonce raw:", text.substring(0, 200));
+  const data = JSON.parse(text);
   return data.nonce;
 }
 
 async function getOidcToken(nonce) {
   const issuedAt = new Date().toISOString();
   const message = `moodymadness.com wants you to sign in with your Ethereum account:\n${ADDRESS.toLowerCase()}\n\n\nURI: https://moodymadness.com/\nVersion: 1\nChain ID: 2741\nNonce: ${nonce}\nIssued At: ${issuedAt}`;
-  
   const signature = await account.signMessage({ message });
 
+  console.log("[MoodyAuth] Enviando oidc-token...");
   const res = await fetch(`${MOODY_AUTH_URL}/generate-oidc-token`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ address: ADDRESS, message, nonce, signature })
   });
 
-  const data = await res.json();
+  const text = await res.text();
+  console.log("[MoodyAuth] OIDC raw:", text.substring(0, 300));
+  const data = JSON.parse(text);
   return data.token;
 }
 
@@ -42,7 +44,9 @@ async function getEntityToken(oidcToken) {
     })
   });
 
-  const data = await res.json();
+  const text = await res.text();
+  console.log("[MoodyAuth] PlayFab raw:", text.substring(0, 300));
+  const data = JSON.parse(text);
   return data?.data?.EntityToken?.EntityToken;
 }
 
@@ -52,7 +56,6 @@ export async function getMoodyEntityToken() {
     const nonce = await getNonce();
     const oidcToken = await getOidcToken(nonce);
     const entityToken = await getEntityToken(oidcToken);
-    
     if (entityToken) {
       console.log("[MoodyAuth] ✅ EntityToken renovado!");
       return entityToken;
