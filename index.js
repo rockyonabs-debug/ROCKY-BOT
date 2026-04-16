@@ -3,14 +3,13 @@ const sessionPrivateKey = generatePrivateKey();
 const sessionSigner = privateKeyToAccount(sessionPrivateKey);
 log(`🔑 Session signer: ${sessionSigner.address}`);
 log(`🔑 Session private key: ${sessionPrivateKey}`);import { createPublicClient, http } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
+import { privateKeyToAccount, generatePrivateKey } from "viem/accounts";
 import { abstract } from "viem/chains";
 import { createAbstractClient } from "@abstract-foundation/agw-client";
 import { createServer } from "http";
 import { runGigaverseDungeon } from "./gigaverse.js";
 import { doMoodyAssistants } from "./moody.js";
 import { activateAssistants } from "./moody-assistants.js";
-import { generatePrivateKey } from "viem/accounts";
 
 const RPC_URL = "https://api.mainnet.abs.xyz";
 const PRIVATE_KEY = process.env.PRIVATE_KEY;
