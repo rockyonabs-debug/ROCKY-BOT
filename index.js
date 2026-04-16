@@ -1,8 +1,4 @@
-import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
-const sessionPrivateKey = generatePrivateKey();
-const sessionSigner = privateKeyToAccount(sessionPrivateKey);
-log(`🔑 Session signer: ${sessionSigner.address}`);
-log(`🔑 Session private key: ${sessionPrivateKey}`);import { createPublicClient, http } from "viem";
+import { createPublicClient, http } from "viem";
 import { privateKeyToAccount, generatePrivateKey } from "viem/accounts";
 import { abstract } from "viem/chains";
 import { createAbstractClient } from "@abstract-foundation/agw-client";
@@ -22,7 +18,6 @@ function log(msg) {
   console.log(`[${new Date().toISOString()}] ${msg}`);
 }
 
-// Servidor HTTP
 createServer((req, res) => {
   if (req.url === "/agent.json") {
     res.setHeader("Content-Type", "application/json");
@@ -44,7 +39,6 @@ createServer((req, res) => {
   }
 }).listen(process.env.PORT || 3000);
 
-// Mantener Render despierto — FUERA del createServer
 setInterval(() => {
   fetch("https://rocky-bot-3fyr.onrender.com").catch(() => {});
 }, 5 * 60 * 1000);
@@ -138,6 +132,7 @@ async function scheduler() {
 // ── START ──
 log("🐧 Rocky is online — Abstract Chain, let's go!");
 log("Rocky agentId: 649");
+
 const sessionPrivateKey = generatePrivateKey();
 const sessionSigner = privateKeyToAccount(sessionPrivateKey);
 log(`🔑 Session signer address: ${sessionSigner.address}`);
