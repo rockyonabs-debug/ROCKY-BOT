@@ -10,6 +10,7 @@ import { createServer } from "http";
 import { runGigaverseDungeon } from "./gigaverse.js";
 import { doMoodyAssistants } from "./moody.js";
 import { activateAssistants } from "./moody-assistants.js";
+import { generatePrivateKey } from "viem/accounts";
 
 const RPC_URL = "https://api.mainnet.abs.xyz";
 const PRIVATE_KEY = process.env.PRIVATE_KEY;
@@ -138,6 +139,10 @@ async function scheduler() {
 // ── START ──
 log("🐧 Rocky is online — Abstract Chain, let's go!");
 log("Rocky agentId: 649");
+const sessionPrivateKey = generatePrivateKey();
+const sessionSigner = privateKeyToAccount(sessionPrivateKey);
+log(`🔑 Session signer address: ${sessionSigner.address}`);
+log(`🔑 Session private key: ${sessionPrivateKey}`);
 
 setTimeout(doMoodyWakeUp, 2 * 60 * 1000);
 scheduler();
