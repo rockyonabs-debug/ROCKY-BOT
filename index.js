@@ -1,4 +1,8 @@
-import { createPublicClient, http } from "viem";
+import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
+const sessionPrivateKey = generatePrivateKey();
+const sessionSigner = privateKeyToAccount(sessionPrivateKey);
+log(`🔑 Session signer: ${sessionSigner.address}`);
+log(`🔑 Session private key: ${sessionPrivateKey}`);import { createPublicClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { abstract } from "viem/chains";
 import { createAbstractClient } from "@abstract-foundation/agw-client";
