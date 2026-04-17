@@ -34,6 +34,11 @@ createServer((req, res) => {
       capabilities: ["grid-trading", "gigaverse-dungeon", "moody-assistants", "ecosystem-voting"],
       services: [{ name: "web", endpoint: "https://rocky-bot-3fyr.onrender.com" }]
     }));
+} else if (req.url === "/session-setup.html") {
+    const fs = await import("fs");
+    const html = fs.readFileSync("./session-setup.html", "utf8");
+    res.setHeader("Content-Type", "text/html");
+    res.end(html);
   } else {
     res.end("Rocky online 🐧");
   }
