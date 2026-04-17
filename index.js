@@ -3,6 +3,7 @@ import { privateKeyToAccount, generatePrivateKey } from "viem/accounts";
 import { abstract } from "viem/chains";
 import { createAbstractClient } from "@abstract-foundation/agw-client";
 import { createServer } from "http";
+import { readFileSync } from "fs";
 import { runGigaverseDungeon } from "./gigaverse.js";
 import { doMoodyAssistants } from "./moody.js";
 import { activateAssistants } from "./moody-assistants.js";
@@ -34,11 +35,14 @@ createServer((req, res) => {
       capabilities: ["grid-trading", "gigaverse-dungeon", "moody-assistants", "ecosystem-voting"],
       services: [{ name: "web", endpoint: "https://rocky-bot-3fyr.onrender.com" }]
     }));
-} else if (req.url === "/session-setup.html") {
-    const fs = await import("fs");
-    const html = fs.readFileSync("./session-setup.html", "utf8");
-    res.setHeader("Content-Type", "text/html");
-    res.end(html);
+  } else if (req.url === "/session-setup.html") {
+    try {
+      const html = readFileSync("./session-setup.html", "utf8");
+      res.setHeader("Content-Type", "text/html");
+      res.end(html);
+    } catch {
+      res.end("session-setup.html not found");
+    }
   } else {
     res.end("Rocky online 🐧");
   }
@@ -134,7 +138,6 @@ async function scheduler() {
   }
 }
 
-// ── START ──
 log("🐧 Rocky is online — Abstract Chain, let's go!");
 log("Rocky agentId: 649");
 
