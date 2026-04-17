@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Rocky Session Setup</title>
+</head>
+<body style="font-family:monospace;padding:40px;background:#111;color:#0f0;max-width:600px">
+  <h2>🐧 Rocky Session Key Setup</h2>
+  <p>Este botón crea una session key que autoriza a Rocky a hacer upvotes desde tu AGW.</p>
+  <p><b>Signer de Rocky:</b> 0x33F42ECC8Aba83c5963A3C927DB23a9277E44F33</p>
+  <p><b>Contrato:</b> 0x3B50dE27506f0a8C1f4122A1e6F470009a76ce2A (upvotes)</p>
+  <button id="btn" style="padding:20px 40px;font-size:18px;cursor:pointer;background:#0f0;border:none;border-radius:8px">
+    Crear Session Key para Rocky
+  </button>
+  <pre id="output" style="margin-top:20px;padding:20px;background:#222;border-radius:8px">Esperando...</pre>
+
+  <script type="module">
+    import { createAbstractClient } from "https://esm.sh/@abstract-foundation/agw-client@1.11.0";
+    import { createWalletClient, custom, parseEther, toFunctionSelector } from "https://esm.sh/viem@2.47.0";
+    import { abstract } from "https://esm.sh/viem@2.47.0/chains";
+
+    const OUTPUT = document.getElementById("output");
+    const BTN = document.getElementById("btn");
+
+    BTN.onclick = async () => {
+      try {
+        OUTPUT.textContent = "Conectando wallet...";
+        BTN.disabled = true;
+
+        if (!window.ethereum) {
+          OUTPUT.textContent = "❌ No se detectó wallet. Abrí esta página con tu AGW conectado.";
+          BTN.disabled = false;
+          return;
+        }
+
+        await window.ethereum.request({ method: "eth_requestAccounts" });
+
+        const walletClient = createWalletClient({
+          chain: abstract,
+          transport: custom(window.ethereum)
+        });
+
+        const [address] = await walletClient.getAddresses();
+        OUTPUT.textContent = `Wallet conectada: ${address}\nCreando session key...`;
+
+        const agwClient = await createAbstractClient({
+          signer: walletClient,
+          chain: abstract,
+        });
+
+        const oneYear = BigInt(Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60);
+
+        const hash = await agwClient.createSession({
+          session: {
+            signer: "0x33F42ECC8Aba83c5963A3C927DB23a9277E44F33",
+            expiresAt: oneYear,
+            feeLimit: {
+              limit: parseEther("0.1"),
+              limitType: 1,
+              period: BigInt(7 * 24 * 60 * 60),
+            },
+            callPolicies: [{
+              target: "0x3B50dE27506f0a8C1f4122A1e6F470009a76ce2A",
+              selector: toFunctionSelector("voteForApp(uint256)"),
+              maxValuePerUse: parseEther("0.001"),
+              valueLimit: {
+                limit: parseEther("0.1"),
+                limitType: 1,
+                period: BigInt(7 * 24 * 60 * 60),
+              },
+              constraints: [],
+            }],
+            transferPolicies: [],
+          },
+        });
+
+        OUTPUT.textContent = `✅ Session key creada!\nTX: ${hash}\n\nYa podés cerrar esta página. Rocky va a hacer upvotes desde tu AGW todos los días.`;
+
+      } catch(e) {
+        OUTPUT.textContent = "❌ Error: " + (e.message || e);
+        BTN.disabled = false;
+      }
+    };
+  </script>
+</body>
+</html>
