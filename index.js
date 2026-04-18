@@ -160,7 +160,7 @@ function scheduleAt(hour, label, fn) {
   setTimeout(() => { fn(); setInterval(fn, 24 * 60 * 60 * 1000); }, ms);
 }
 
-// ── START ──
+// ── START ── 2026-04-18
 log("🐧 Rocky is online — Abstract Chain, let's go!");
 log("Rocky agentId: 649");
 
