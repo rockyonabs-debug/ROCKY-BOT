@@ -52,6 +52,11 @@
 | `ROCKY_PRIVATE_KEY` / `ROCKY_EOA_PRIVATE_KEY` | Session signer in upvote.mjs |
 | `PORT` | HTTP server port (default 3000) |
 
+## Skills
+| File | Purpose |
+|------|---------|
+| `skills/openclaw-max-leverage.md` | GPT-5.4 OpenClaw Max-Leverage Prompt — plan-first execution protocol for high-stakes tasks spanning research, tool use, and long-context workflows. Variables: `{TASK}`, `{OUTPUT_FORMAT}`, `{RISK_LEVEL}`, `{TIME_BUDGET}`, `{SOURCE_URLS}`, `{CONSTRAINTS}` |
+
 ## Pending / In Progress
 - **Moody wake-up API**: Needs PlayFab integration to trigger assistant activation
 - **Tweets reactivation**: Twitter/X posting was disabled, needs to be restored
