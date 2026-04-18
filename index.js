@@ -95,5 +95,18 @@ log("Rocky agentId: 649");
 
 runGrid();
 setInterval(runGrid, 10 * 60 * 1000);
-doPersonalVote();
-setInterval(doPersonalVote, 24 * 60 * 60 * 1000);
+// Cron interno — vota todos los días a las 14:00 Argentina (UTC-3)
+function scheduleVote() {
+  const now = new Date();
+  const argNow = new Date(now.toLocaleString("en-US", { timeZone: "America/Argentina/Buenos_Aires" }));
+  const nextVote = new Date(argNow);
+  nextVote.setHours(14, 0, 0, 0);
+  if (argNow >= nextVote) nextVote.setDate(nextVote.getDate() + 1);
+  const msUntilVote = nextVote - argNow;
+  log(`🗳️ Next vote scheduled in ${Math.round(msUntilVote / 60000)} minutes (14:00 Argentina)`);
+  setTimeout(() => {
+    doPersonalVote();
+    setInterval(doPersonalVote, 24 * 60 * 60 * 1000);
+  }, msUntilVote);
+}
+scheduleVote();
