@@ -11,7 +11,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const stored = JSON.parse(readFileSync(join(__dirname, "session-config.json"), "utf8"));
 const sessionConfig = stored.session;
 
-const sessionSigner = privateKeyToAccount(process.env.ROCKY_EOA_PRIVATE_KEY);
+const sessionSigner = privateKeyToAccount(process.env.ROCKY_PRIVATE_KEY || process.env.ROCKY_EOA_PRIVATE_KEY);
 
 const APP_IDS = [39n, 213n, 222n, 15n, 150n, 223n, 207n];
 const day = new Date().getDay();
