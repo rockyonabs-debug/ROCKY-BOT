@@ -5,10 +5,8 @@ import { privateKeyToAccount } from "viem/accounts";
 import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
-import { config } from "dotenv";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-config({ path: join(__dirname, ".env") });
 
 const stored = JSON.parse(readFileSync(join(__dirname, "session-config.json"), "utf8"));
 const sessionConfig = stored.session;
@@ -20,7 +18,7 @@ const day = new Date().getDay();
 const index = day === 0 ? 6 : day - 1;
 const appId = APP_IDS[index];
 
-console.log(`Votando appId ${appId} desde AGW 0xaF7B17...`);
+console.log(`Votando appId ${appId} desde AGW personal...`);
 
 const sessionClient = createSessionClient({
   account: "0xaF7B17E7bbF5A21DeB480711959da0830A93199b",
