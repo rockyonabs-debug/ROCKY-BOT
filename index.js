@@ -57,16 +57,16 @@ resourceServer.register("abstract", new ExactEvmScheme(facilitatorClient));
 
 const x402Routes = {
   "/vote": {
-    price: "$0.05",
+    price: { amount: "100000000000000", asset: WETH },
     network: "abstract",
     payTo: AGW_ADDRESS,
-    config: { description: "Daily ecosystem vote from Rocky's personal AGW — $0.05 USDC" }
+    config: { description: "Daily ecosystem vote from Rocky's personal AGW — 0.0001 WETH" }
   },
   "/gigaverse": {
-    price: "$0.10",
+    price: { amount: "300000000000000", asset: WETH },
     network: "abstract",
     payTo: AGW_ADDRESS,
-    config: { description: "Gigaverse dungeon run by Rocky — $0.10 USDC" }
+    config: { description: "Gigaverse dungeon run by Rocky — 0.0003 WETH" }
   }
 };
 
@@ -100,8 +100,8 @@ app.get("/agent.json", (req, res) => {
     services: [
       { name: "web",       endpoint: "https://rocky-bot-3fyr.onrender.com" },
       { name: "mcp",       endpoint: "https://rocky-bot-3fyr.onrender.com/mcp" },
-      { name: "vote",      endpoint: "https://rocky-bot-3fyr.onrender.com/vote",      price: "$0.05 USDC", method: "POST" },
-      { name: "gigaverse", endpoint: "https://rocky-bot-3fyr.onrender.com/gigaverse", price: "$0.10 USDC", method: "POST" }
+      { name: "vote",      endpoint: "https://rocky-bot-3fyr.onrender.com/vote",      price: "0.0001 WETH", method: "POST" },
+      { name: "gigaverse", endpoint: "https://rocky-bot-3fyr.onrender.com/gigaverse", price: "0.0003 WETH", method: "POST" }
     ]
   });
 });
