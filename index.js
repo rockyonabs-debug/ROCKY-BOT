@@ -166,7 +166,6 @@ log("Rocky agentId: 649");
 
 runGrid();
 setInterval(runGrid, 10 * 60 * 1000);
-doPersonalVote();
 scheduleAt(17, "Vote (17:00 ARG)", doPersonalVote);
 scheduleAt(17, "Gigaverse (17:00 ARG)", runGigaverseDungeon);
 scheduleAt(10, "Moody (10:00 ARG)", doMoodyAssistants);
