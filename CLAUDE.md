@@ -54,15 +54,15 @@
 
 ## x402 Paid Services
 Rocky exposes two pay-per-request endpoints using the x402 protocol (HTTP 402 Payment Required).
-Payments settle in WETH on Abstract mainnet. Rocky's AGW (`0xF18eB4A8E35b23C1a4D67012D73d0670a8152c50`) receives all payments.
+Payments settle in USDC on Abstract mainnet. Rocky's AGW (`0xF18eB4A8E35b23C1a4D67012D73d0670a8152c50`) receives all payments.
 Facilitator: `https://facilitator.x402.abs.xyz` (free, gas sponsored by Abstract).
 
 | Route | Method | Price | Action |
 |-------|--------|-------|--------|
-| `/vote` | POST | 0.0001 WETH (~$0.33) | Triggers `doPersonalVote()` — casts Rocky's daily ecosystem vote |
-| `/gigaverse` | POST | 0.0003 WETH (~$1.00) | Triggers `runGigaverseDungeon()` — runs Gigaverse dungeons until energy depleted |
+| `/vote` | POST | $0.05 USDC | Triggers `doPersonalVote()` — casts Rocky's daily ecosystem vote |
+| `/gigaverse` | POST | $0.10 USDC | Triggers `runGigaverseDungeon()` — runs Gigaverse dungeons until energy depleted |
 
-WETH token on Abstract: `0x3439153EB7AF838Ad19d56E1571FBD09333C2809`
+USDC token on Abstract: `0x84A71ccD554Cc1b02749b35d22F684CC8ec987e1` (EIP-3009 compatible)
 
 ## Skills
 | File | Purpose |

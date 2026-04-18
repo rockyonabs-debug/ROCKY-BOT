@@ -55,18 +55,20 @@ const facilitatorClient = new HTTPFacilitatorClient(FACILITATOR_URL);
 const resourceServer = new x402ResourceServer(facilitatorClient);
 resourceServer.register("abstract", new ExactEvmScheme(facilitatorClient));
 
+const USDC = "0x84A71ccD554Cc1b02749b35d22F684CC8ec987e1";
+
 const x402Routes = {
   "/vote": {
-    price: { amount: "100000000000000", asset: WETH },
+    price: { amount: "50000", asset: USDC },
     network: "abstract",
     payTo: AGW_ADDRESS,
-    config: { description: "Daily ecosystem vote from Rocky's personal AGW — 0.0001 WETH" }
+    config: { description: "Daily ecosystem vote from Rocky's personal AGW — $0.05 USDC" }
   },
   "/gigaverse": {
-    price: { amount: "300000000000000", asset: WETH },
+    price: { amount: "100000", asset: USDC },
     network: "abstract",
     payTo: AGW_ADDRESS,
-    config: { description: "Gigaverse dungeon run by Rocky — 0.0003 WETH" }
+    config: { description: "Gigaverse dungeon run by Rocky — $0.10 USDC" }
   }
 };
 
@@ -100,8 +102,8 @@ app.get("/agent.json", (req, res) => {
     services: [
       { name: "web",       endpoint: "https://rocky-bot-3fyr.onrender.com" },
       { name: "mcp",       endpoint: "https://rocky-bot-3fyr.onrender.com/mcp" },
-      { name: "vote",      endpoint: "https://rocky-bot-3fyr.onrender.com/vote",      price: "0.0001 WETH", method: "POST" },
-      { name: "gigaverse", endpoint: "https://rocky-bot-3fyr.onrender.com/gigaverse", price: "0.0003 WETH", method: "POST" }
+      { name: "vote",      endpoint: "https://rocky-bot-3fyr.onrender.com/vote",      price: "$0.05 USDC", method: "POST" },
+      { name: "gigaverse", endpoint: "https://rocky-bot-3fyr.onrender.com/gigaverse", price: "$0.10 USDC", method: "POST" }
     ]
   });
 });
