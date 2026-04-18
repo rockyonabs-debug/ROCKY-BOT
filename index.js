@@ -77,7 +77,7 @@ function scheduleVote() {
   const now = new Date();
   const argNow = new Date(now.toLocaleString("en-US", { timeZone: "America/Argentina/Buenos_Aires" }));
   const nextVote = new Date(argNow);
-  nextVote.setHours(14, 0, 0, 0);
+  nextVote.setHours(17, 0, 0, 0);
   if (argNow >= nextVote) nextVote.setDate(nextVote.getDate() + 1);
   const msUntilVote = nextVote - argNow;
   log(`🗳️ Next vote in ${Math.round(msUntilVote / 60000)} min (14:00 Argentina)`);
@@ -92,7 +92,7 @@ function scheduleGigaverse() {
   const now = new Date();
   const argNow = new Date(now.toLocaleString("en-US", { timeZone: "America/Argentina/Buenos_Aires" }));
   const next = new Date(argNow);
-  next.setHours(8, 0, 0, 0);
+  next.setHours(17, 0, 0, 0);
   if (argNow >= next) next.setDate(next.getDate() + 1);
   const ms = next - argNow;
   log(`🏰 Gigaverse next run in ${Math.round(ms / 60000)} min (08:00 Argentina)`);
