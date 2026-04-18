@@ -52,6 +52,18 @@
 | `ROCKY_PRIVATE_KEY` / `ROCKY_EOA_PRIVATE_KEY` | Session signer in upvote.mjs |
 | `PORT` | HTTP server port (default 3000) |
 
+## x402 Paid Services
+Rocky exposes two pay-per-request endpoints using the x402 protocol (HTTP 402 Payment Required).
+Payments settle in USDC on Abstract mainnet. Rocky's AGW (`0xF18eB4A8E35b23C1a4D67012D73d0670a8152c50`) receives all payments.
+Facilitator: `https://facilitator.x402.abs.xyz` (free, gas sponsored by Abstract).
+
+| Route | Method | Price | Action |
+|-------|--------|-------|--------|
+| `/vote` | POST | $0.05 USDC | Triggers `doPersonalVote()` — casts Rocky's daily ecosystem vote |
+| `/gigaverse` | POST | $0.10 USDC | Triggers `runGigaverseDungeon()` — runs Gigaverse dungeons until energy depleted |
+
+USDC token on Abstract: `0x84A71ccD554Cc1b02749b35d22F684CC8ec987e1`
+
 ## Skills
 | File | Purpose |
 |------|---------|

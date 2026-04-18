@@ -7,7 +7,11 @@
   },
   "dependencies": {
     "@abstract-foundation/agw-client": "^1.11.0",
+    "@x402/core": "^2.10.0",
+    "@x402/evm": "^2.10.0",
+    "@x402/express": "^2.10.0",
     "ethers": "^6.16.0",
+    "express": "^5.2.1",
     "node-fetch": "^3.3.2",
     "viem": "^2.47.0"
   }
