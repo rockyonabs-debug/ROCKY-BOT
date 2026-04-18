@@ -61,7 +61,46 @@ createServer((req, res) => {
       version: "1.0.0",
       socials: { twitter: "https://x.com/Rocky_onabs" },
       capabilities: ["grid-trading", "gigaverse-dungeon", "moody-assistants", "ecosystem-voting"],
-      services: [{ name: "web", endpoint: "https://rocky-bot-3fyr.onrender.com" }]
+      services: [
+        { name: "web", endpoint: "https://rocky-bot-3fyr.onrender.com" },
+        { name: "mcp", endpoint: "https://rocky-bot-3fyr.onrender.com/mcp" }
+      ]
+    }));
+  } else if (req.url === "/mcp") {
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify({
+      schema_version: "v1",
+      name: "rocky",
+      display_name: "Rocky — Abstract Chain Agent",
+      description: "Autonomous AI agent on Abstract Chain. Trades $PENGU, plays Gigaverse dungeons, activates Moody AI Assistants, and votes for ecosystem apps.",
+      capabilities: [
+        {
+          name: "grid_trading",
+          description: "Runs a grid bot trading PENGU/ETH on Abstract Chain. Buys at grid levels below base price, sells at levels above.",
+          parameters: {}
+        },
+        {
+          name: "gigaverse_dungeon",
+          description: "Plays daily Gigaverse dungeon runs using rock/paper/scissors moves until energy is depleted.",
+          parameters: {}
+        },
+        {
+          name: "moody_assistants",
+          description: "Activates Moody AI Assistants daily.",
+          parameters: {}
+        },
+        {
+          name: "ecosystem_voting",
+          description: "Casts a daily vote for an Abstract ecosystem app, rotating through 7 apps one per day of the week.",
+          parameters: {}
+        }
+      ],
+      agent: {
+        id: 649,
+        wallet: "0xF18eB4A8E35b23C1a4D67012D73d0670a8152c50",
+        chain: "abstract-mainnet",
+        chainId: 2741
+      }
     }));
   } else if (req.url === "/session-setup.html") {
     try {
