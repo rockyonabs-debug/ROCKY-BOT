@@ -1,15 +1,43 @@
 import fetch from "node-fetch";
+import { privateKeyToAccount } from "viem/accounts";
 
 const GIGA_BASE = "https://gigaverse.io/api";
 const PLAYER_ADDRESS = "0xaF7B17E7bbF5A21DeB480711959da0830A93199b";
 const ENERGY_PER_RUN = 40;
 const MIN_ENERGY = 40;
 
+let sessionJWT = null;
+
 function getJWT() {
-  return process.env.GIGAVERSE_JWT || "";
+  return sessionJWT || process.env.GIGAVERSE_JWT || "";
 }
 
-async function gigaFetch(path, body, method = "POST") {
+async function renewJWT() {
+  console.log("[Gigaverse] 🔑 Renewing JWT via SIWE...");
+  const account = privateKeyToAccount(process.env.PRIVATE_KEY);
+  const timestamp = Date.now();
+  const message = `Login to Gigaverse at ${timestamp}`;
+  const signature = await account.signMessage({ message });
+
+  const res = await fetch(`${GIGA_BASE}/user/auth`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "origin": "https://gigaverse.io", "referer": "https://gigaverse.io/" },
+    body: JSON.stringify({
+      address: PLAYER_ADDRESS,
+      message,
+      signature,
+      agent_metadata: { type: "gigaverse-play-skill", model: "claude-sonnet-4-6" },
+    }),
+  });
+
+  const data = await res.json();
+  if (!data?.token) throw new Error(`JWT renewal failed: ${JSON.stringify(data)}`);
+  sessionJWT = data.token;
+  console.log("[Gigaverse] ✅ JWT renewed successfully");
+  return sessionJWT;
+}
+
+async function gigaFetch(path, body, method = "POST", retry = true) {
   const res = await fetch(`${GIGA_BASE}${path}`, {
     method,
     headers: {
@@ -25,13 +53,23 @@ async function gigaFetch(path, body, method = "POST") {
   let json;
   try { json = JSON.parse(text); } catch(e) { throw new Error(`Not JSON: ${text.substring(0, 200)}`); }
   json._status = res.status;
+  if (res.status === 401 && retry) {
+    console.log("[Gigaverse] 🔄 401 — renewing JWT and retrying...");
+    await renewJWT();
+    return gigaFetch(path, body, method, false);
+  }
   return json;
 }
 
-async function getEnergy() {
+async function getEnergy(retry = true) {
   const res = await fetch(`${GIGA_BASE}/offchain/player/energy/${PLAYER_ADDRESS}`, {
     headers: { "Authorization": `Bearer ${getJWT()}` }
   });
+  if (res.status === 401 && retry) {
+    console.log("[Gigaverse] 🔄 401 on energy — renewing JWT...");
+    await renewJWT();
+    return getEnergy(false);
+  }
   const data = await res.json();
   const energy = data?.entities?.[0]?.parsedData?.energyValue ?? 0;
   console.log(`[Gigaverse] ⚡ Energía: ${energy}`);
@@ -175,6 +213,7 @@ async function playOneRun() {
 
 export async function runGigaverseDungeon() {
   console.log("[Gigaverse] 🏰 Rocky starting daily dungeon grind...");
+  if (!getJWT()) await renewJWT();
 
   let totalWins = 0;
   let totalRuns = 0;
