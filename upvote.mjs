@@ -14,11 +14,6 @@ const sessionSigner = privateKeyToAccount(process.env.ROCKY_PRIVATE_KEY || proce
 // 7 apps rotando — una por día de la semana
 const APP_IDS = [39n, 213n, 222n, 15n, 150n, 223n, 207n];
 
-const publicClient = createPublicClient({
-  chain: abstract,
-  transport: http("https://api.mainnet.abs.xyz"),
-});
-
 // Intentar votar con fallback al siguiente si ya votamos hoy
 async function tryVote(appId) {
   const sessionClient = createSessionClient({
