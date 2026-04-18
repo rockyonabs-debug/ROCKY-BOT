@@ -1,5 +1,5 @@
 import { createSessionClient } from "@abstract-foundation/agw-client/sessions";
-import { createPublicClient, abstract as abstractChain, http } from "viem";
+import { http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
