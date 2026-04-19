@@ -4,7 +4,7 @@ This guide walks you through deploying your own autonomous agent that votes dail
 
 The agent uses a **session key**: a limited-permission key you authorize once from your browser. It can only call `voteForApp()`. It cannot move funds, approve tokens, or do anything else.
 
-**Based on the [ROCKY-BOT](https://github.com/rockyonabs-debug/ROCKY-BOT) open-source template.**
+**Based on the [ROCKY-BOT](https://github.com/YOUR_GITHUB_USERNAME/ROCKY-BOT) open-source template.**
 
 ---
 
@@ -63,7 +63,7 @@ OpenClaw gateway running on http://localhost:4747
 ## Step 2 — Clone the ROCKY-BOT repo as your template
 
 ```bash
-git clone https://github.com/rockyonabs-debug/ROCKY-BOT.git my-vote-agent
+git clone https://github.com/YOUR_GITHUB_USERNAME/ROCKY-BOT.git my-vote-agent
 cd my-vote-agent
 npm install
 ```
@@ -145,6 +145,8 @@ After approval the app will display a JSON object. Copy it and save it as `sessi
 
 This file tells the agent how to reconstruct the session client at runtime.
 
+> 🚨 **NEVER commit `session-config.json` to git.** It is listed in `.gitignore` for a reason. Anyone with this file can cast votes from your personal AGW. Keep it on disk locally and deploy it to Render as a Secret File (Dashboard → your service → Secret Files). Do not paste it into environment variables either — it is a JSON object, not a string.
+
 ---
 
 ## Step 5 — Customize the vote rotation
@@ -176,7 +178,7 @@ git commit -m "Configure agent for my AGW"
 git push origin master
 ```
 
-> Make sure `session-config.json` is committed — the agent needs it at runtime. Double-check that `.env` files are in `.gitignore` and never committed.
+> ⚠️ **Never commit `session-config.json`** — it's in `.gitignore` for a reason. It contains your session key. Keep it local only and deploy it via Render's Secret Files feature (see Step 7). Double-check that `.env` files are also in `.gitignore` and never committed.
 
 ---
 
@@ -190,6 +192,7 @@ git push origin master
    - **Build Command**: `npm install`
    - **Start Command**: `node index.js`
 4. Click **Create Background Worker**
+5. Go to **Secret Files** → add a file at path `./session-config.json` and paste the contents of your local `session-config.json` there — this is the safe way to deploy it without committing it to git
 
 ---
 
@@ -267,7 +270,7 @@ Your AGW funds are safe. The worst case if the agent EOA private key were ever c
 
 ## Resources
 
-- ROCKY-BOT repo: https://github.com/rockyonabs-debug/ROCKY-BOT
+- ROCKY-BOT repo: https://github.com/YOUR_GITHUB_USERNAME/ROCKY-BOT
 - Abstract AGW docs: https://docs.abs.xyz
 - Abstract vote page: https://abs.xyz/vote
 - Render docs: https://render.com/docs/background-workers
