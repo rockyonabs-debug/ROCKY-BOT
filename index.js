@@ -151,11 +151,11 @@ async function doMoodyComplete() {
 
 function scheduleAt(hour, minute, label, fn) {
   const now = new Date();
-  const argNow = new Date(now.toLocaleString("en-US", { timeZone: "America/Argentina/Buenos_Aires" }));
-  const next = new Date(argNow);
+  const utcNow = new Date(now.toLocaleString("en-US", { timeZone: "UTC" }));
+  const next = new Date(utcNow);
   next.setHours(hour, minute, 0, 0);
-  if (argNow >= next) next.setDate(next.getDate() + 1);
-  const ms = next - argNow;
+  if (utcNow >= next) next.setDate(next.getDate() + 1);
+  const ms = next - utcNow;
   log(`⏰ ${label} in ${Math.round(ms / 60000)} min`);
   setTimeout(() => { fn(); setInterval(fn, 24 * 60 * 60 * 1000); }, ms);
 }
@@ -166,13 +166,9 @@ log("Rocky agentId: 649");
 runGrid();
 setInterval(runGrid, 10 * 60 * 1000);
 
-// Vote diario 15:30 ARG
-scheduleAt(15, 30, "Vote (15:30 ARG)", doPersonalVote);
+scheduleAt(18, 30, "Vote (18:30 UTC)", doPersonalVote);
+scheduleAt(11, 0, "Gigaverse (11:00 UTC)", runGigaverseDungeon);
 
-// Gigaverse diario 08:00 ARG
-scheduleAt(8, 0, "Gigaverse (08:00 ARG)", runGigaverseDungeon);
-
-// Moody cada 12h + 1min acumulativo — nunca exactamente en el mismo horario
 async function moodyLoop() {
   while (true) {
     log("🔥 Moody Burns iniciando...");
@@ -186,5 +182,4 @@ async function moodyLoop() {
   }
 }
 
-// Primer ciclo de Moody a las 10:00 ARG
-scheduleAt(10, 0, "Moody primer ciclo (10:00 ARG)", moodyLoop);
+scheduleAt(13, 0, "Moody primer ciclo (13:00 UTC)", moodyLoop);
