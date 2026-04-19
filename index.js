@@ -139,27 +139,14 @@ async function doPersonalVote() {
   }
 }
 
-async function wakeUpSlot(entityToken, slotId) {
-  const res = await fetch("https://2fe83.playfabapi.com/CloudScript/ExecuteFunction?sdk=JavaScriptSDK-1.93.210927", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-EntityToken": entityToken, "origin": "https://moodymadness.com", "referer": "https://moodymadness.com/" },
-    body: JSON.stringify({
-      FunctionName: "PostAiAssistantWakeUp",
-      FunctionParameter: {
-        ProfileID: "A65036813206D95A",
-        SlotId: slotId,
-        DrinkItemInstanceId: ["98FF330F5B6A3D64","98FF330F5B6A3D64","98FF330F5B6A3D64","98FF330F5B6A3D64","98FF330F5B6A3D64"],
-        TimeZone: -10800000
-      }
-    })
-  });
-  const data = await res.json();
-  if (data.code === 200) {
-    log(`✅ ${slotId} activado!`);
-  } else {
-    log(`❌ ${slotId} error: ${JSON.stringify(data).substring(0, 200)}`);
-  }
-  return data;
+// Moody: quema + wake up 1 minuto después, cada 12 horas + 1 minuto de margen
+async function doMoodyComplete() {
+  log("🔥 Moody Burns iniciando...");
+  await doMoodyAssistants();
+  log("⏳ Esperando 60s para wake up...");
+  await new Promise(r => setTimeout(r, 60000));
+  log("🤖 Moody Wake Up iniciando...");
+  await activateAssistants();
 }
 
 function scheduleAt(hour, minute, label, fn) {
@@ -178,19 +165,26 @@ log("Rocky agentId: 649");
 
 runGrid();
 setInterval(runGrid, 10 * 60 * 1000);
-scheduleAt(15, 30, "Vote (15:30 ARG)", doPersonalVote);
-scheduleAt(8, 0, "Gigaverse (08:00 ARG)", runGigaverseDungeon);
-scheduleAt(10, 0, "Moody Burns (10:00 ARG)", doMoodyAssistants);
-scheduleAt(10, 1, "Moody Wake Up (10:01 ARG)", activateAssistants);
 
-// Test forzado slot_003 en 1 minuto
-setTimeout(async () => {
-  log("🔥 Test forzado — quema slot_003...");
-  await doMoodyAssistants();
-  log("⏳ Esperando 30s para wake up slot_003...");
-  await new Promise(r => setTimeout(r, 30000));
-  const { getMoodyEntityToken } = await import('./moody-auth.js');
-  const entityToken = await getMoodyEntityToken();
-  if (!entityToken) { log("❌ Sin token para wake up"); return; }
-  await wakeUpSlot(entityToken, "slot_003");
-}, 60000);
+// Vote diario 15:30 ARG
+scheduleAt(15, 30, "Vote (15:30 ARG)", doPersonalVote);
+
+// Gigaverse diario 08:00 ARG
+scheduleAt(8, 0, "Gigaverse (08:00 ARG)", runGigaverseDungeon);
+
+// Moody cada 12h + 1min acumulativo — nunca exactamente en el mismo horario
+async function moodyLoop() {
+  while (true) {
+    log("🔥 Moody Burns iniciando...");
+    await doMoodyAssistants();
+    log("⏳ Esperando 60s para wake up...");
+    await new Promise(r => setTimeout(r, 60000));
+    log("🤖 Moody Wake Up iniciando...");
+    await activateAssistants();
+    log("✅ Moody ciclo completo. Próximo en 12h 1min.");
+    await new Promise(r => setTimeout(r, (12 * 60 + 1) * 60 * 1000));
+  }
+}
+
+// Primer ciclo de Moody a las 10:00 ARG
+scheduleAt(10, 0, "Moody primer ciclo (10:00 ARG)", moodyLoop);
