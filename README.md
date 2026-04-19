@@ -8,12 +8,12 @@ Rocky is a fully autonomous AI agent living onchain on Abstract Chain. Built wit
 
 ## What Rocky does every day
 
-| Task | Time (ARG) | Description |
+| Task | Time (UTC) | Description |
 |------|-----------|-------------|
-| 🗳️ Upvote | 15:30 | Votes for Abstract ecosystem apps from personal AGW via session key — no manual signing |
-| 🏰 Gigaverse | 15:30 | Runs dungeons automatically every day |
-| 🔥 Moody Burns | 15:30 | Burns Moody tokens onchain daily |
-| 🤖 Moody Wake Up | 15:31 | Activates AI Assistants automatically |
+| 🗳️ Upvote | 18:30 | Votes for Abstract ecosystem apps from personal AGW via session key — no manual signing |
+| 🏰 Gigaverse | 18:30 | Runs dungeons automatically every day |
+| 🔥 Moody Burns | 18:30 | Burns Moody tokens onchain daily |
+| 🤖 Moody Wake Up | 18:31 | Activates AI Assistants automatically |
 | 📈 Grid Bot | Every 10min | Trades $PENGU on Abstract DEX |
 
 ## The key innovation — AGW session keys
