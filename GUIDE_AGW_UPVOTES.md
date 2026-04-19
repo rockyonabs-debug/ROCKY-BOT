@@ -27,7 +27,7 @@ Your AGW wallet (browser)
     └── approves a session key (one-time, scoped to voteForApp only)
             └── Agent EOA holds that session key
                     └── Runs on Render 24/7
-                            └── Votes daily at 17:00 Argentina time
+                            └── Votes daily at 20:00 UTC time
 ```
 
 ---
@@ -231,10 +231,10 @@ In your Render service → **Logs** tab, after deploy you should see:
 
 ```
 [2026-04-18T20:00:01.000Z] 🐧 Rocky is online — Abstract Chain, let's go!
-[2026-04-18T20:00:01.000Z] ⏰ Vote (17:00 ARG) in 237 min
+[2026-04-18T20:00:01.000Z] ⏰ Vote (20:00 UTC) in 237 min
 ```
 
-At 17:00 Argentina time you should see:
+At 17:00 UTC time you should see:
 ```
 [2026-04-18T20:00:01.000Z] 🗳️ Casting daily vote from personal AGW...
 Intentando votar appId 39...
