@@ -13,6 +13,7 @@
 | Rocky AGW | `0xF18eB4A8E35b23C1a4D67012D73d0670a8152c50` |
 | Rocky EOA | `0x8a16261bE29306c8985C50c953dee51fc78C7E3C` |
 | Owner personal AGW | `0xaF7B17E7bbF5A21DeB480711959da0830A93199b` |
+| Session signer (upvote) | `0x689CBD56c4f063762d571F265FBA8E47A5abf67e` — new, replaces exposed `0x33F42E...` |
 
 ## Daily Schedule (Argentina time)
 | Time | Task |
