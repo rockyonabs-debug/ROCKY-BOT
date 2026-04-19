@@ -8,6 +8,18 @@ The agent uses a **session key**: a limited-permission key you authorize once fr
 
 ---
 
+> ## ⚠️ SECURITY WARNING — Read Before You Start
+>
+> - **NEVER commit private keys, `session-config.json`, or `.env` files to GitHub.**
+> - Add `session-config.json` and `.env*` to `.gitignore` **before your first commit** — not after.
+> - The `.gitignore` in this repo already covers this. Do not remove those entries.
+> - **If you accidentally commit sensitive data:** rotate your keys immediately, then use `git filter-repo` to scrub history. Removing the file in a new commit is NOT enough — the data remains in history.
+> - GitHub bots and secret-scanning crawlers index public repos **within minutes** of a push. Assume any exposed key is already compromised.
+> - A compromised **session key** can cast votes from your AGW.
+> - A compromised **EOA private key** can drain your entire wallet.
+
+---
+
 ## How it works
 
 ```
@@ -265,6 +277,19 @@ You should see a `voteForApp` call originating from your personal AGW address.
 | | Sign arbitrary messages |
 
 Your AGW funds are safe. The worst case if the agent EOA private key were ever compromised is that someone could cast votes on your behalf.
+
+---
+
+## 🔐 Security Checklist
+
+Before you consider your deployment complete, verify every item:
+
+- [ ] `.gitignore` includes `session-config.json`, `.env`, and `.env*`
+- [ ] `session-config.json` is **never** committed to the repo — deploy it via Render Secret Files only
+- [ ] Private keys are stored **only** in Render environment variables, never written in any code file
+- [ ] Session key scope is verified — the `callPolicies` in `session-config.json` should show only `voteForApp()` on `0x3B50dE27506f0a8C1f4122A1e6F470009a76ce2A`, nothing else
+- [ ] You know how to revoke the session key anytime from the session-keys-app if needed
+- [ ] You have rotated keys if anything was ever accidentally committed
 
 ---
 
