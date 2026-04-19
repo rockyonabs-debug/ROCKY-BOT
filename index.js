@@ -2,15 +2,12 @@ import { createPublicClient, http, parseEther, formatEther, encodePacked, encode
 import { privateKeyToAccount } from "viem/accounts";
 import { abstract } from "viem/chains";
 import { createAbstractClient } from "@abstract-foundation/agw-client";
+import { createServer } from "http";
 import { readFileSync } from "fs";
 import { execSync } from "child_process";
 import { runGigaverseDungeon } from "./gigaverse.js";
 import { doMoodyAssistants } from "./moody.js";
 import { activateAssistants } from "./moody-assistants.js";
-import express from "express";
-import { paymentMiddleware } from "@x402/express";
-import { x402ResourceServer, HTTPFacilitatorClient } from "@x402/core/server";
-import { ExactEvmScheme } from "@x402/evm";
 
 const RPC_URL = "https://api.mainnet.abs.xyz";
 const PRIVATE_KEY = process.env.PRIVATE_KEY;
@@ -18,7 +15,6 @@ const AGW_ADDRESS = "0xF18eB4A8E35b23C1a4D67012D73d0670a8152c50";
 const publicClient = createPublicClient({ chain: abstract, transport: http(RPC_URL) });
 const account = privateKeyToAccount(PRIVATE_KEY);
 
-// ── GRID CONFIG ──
 const PENGU = "0x9eBe3A824Ca958e4b3Da772D2065518F009CBa62";
 const WETH = "0x3439153EB7AF838Ad19d56E1571FBD09333C2809";
 const ROUTER = "0xE1b076ea612Db28a0d768660e4D81346c02ED75e";
@@ -50,94 +46,35 @@ function log(msg) {
   console.log(`[${new Date().toISOString()}] ${msg}`);
 }
 
-// ── x402 CONFIG ──
-const FACILITATOR_URL = "https://facilitator.x402.abs.xyz";
-const facilitatorClient = new HTTPFacilitatorClient(FACILITATOR_URL);
-const resourceServer = new x402ResourceServer(facilitatorClient);
-resourceServer.register("abstract", new ExactEvmScheme(facilitatorClient));
-
-const USDC = "0x84A71ccD554Cc1b02749b35d22F684CC8ec987e1";
-
-const x402Routes = {
-  "/vote": {
-    price: { amount: "50000", asset: USDC },
-    network: "abstract",
-    payTo: AGW_ADDRESS,
-    config: { description: "Daily ecosystem vote from Rocky's personal AGW — $0.05 USDC" }
-  },
-  "/gigaverse": {
-    price: { amount: "100000", asset: USDC },
-    network: "abstract",
-    payTo: AGW_ADDRESS,
-    config: { description: "Gigaverse dungeon run by Rocky — $0.10 USDC" }
+createServer((req, res) => {
+  if (req.url === "/agent.json") {
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify({
+      type: "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
+      name: "Rocky",
+      description: "Autonomous AI agent on Abstract Chain. Rockhopper penguin from Patagonia. Trades $PENGU, plays Gigaverse dungeons daily, activates Moody AI Assistants, and votes for Abstract ecosystem apps.",
+      image: "https://raw.githubusercontent.com/rockyonabs-debug/ROCKY-BOT/master/rocky.png",
+      chain: "abstract-mainnet",
+      chainId: 2741,
+      wallet: "0xF18eB4A8E35b23C1a4D67012D73d0670a8152c50",
+      version: "1.0.0",
+      socials: { twitter: "https://x.com/Rocky_onabs" },
+      capabilities: ["grid-trading", "gigaverse-dungeon", "moody-assistants", "ecosystem-voting"],
+      services: [{ name: "web", endpoint: "https://rocky-bot-3fyr.onrender.com" }]
+    }));
+  } else if (req.url === "/session-setup.html") {
+    try {
+      const html = readFileSync("./session-setup.html", "utf8");
+      res.setHeader("Content-Type", "text/html");
+      res.end(html);
+    } catch { res.end("session-setup.html not found"); }
+  } else {
+    res.end("Rocky online 🐧");
   }
-};
-
-// ── HTTP SERVER ──
-const app = express();
-app.use(express.json());
-app.use(paymentMiddleware(x402Routes, resourceServer));
-
-app.post("/vote", async (req, res) => {
-  await doPersonalVote();
-  res.json({ ok: true, message: "Vote cast" });
-});
-
-app.post("/gigaverse", async (req, res) => {
-  const result = await runGigaverseDungeon();
-  res.json({ ok: true, ...result });
-});
-
-app.get("/agent.json", (req, res) => {
-  res.json({
-    type: "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
-    name: "Rocky",
-    description: "Autonomous AI agent on Abstract Chain. Rockhopper penguin from Patagonia. Trades $PENGU, plays Gigaverse dungeons daily, activates Moody AI Assistants, and votes for Abstract ecosystem apps.",
-    image: "https://raw.githubusercontent.com/rockyonabs-debug/ROCKY-BOT/master/rocky.png",
-    chain: "abstract-mainnet",
-    chainId: 2741,
-    wallet: AGW_ADDRESS,
-    version: "1.0.0",
-    socials: { twitter: "https://x.com/Rocky_onabs" },
-    capabilities: ["grid-trading", "gigaverse-dungeon", "moody-assistants", "ecosystem-voting"],
-    services: [
-      { name: "web",       endpoint: "https://rocky-bot-3fyr.onrender.com" },
-      { name: "mcp",       endpoint: "https://rocky-bot-3fyr.onrender.com/mcp" },
-      { name: "vote",      endpoint: "https://rocky-bot-3fyr.onrender.com/vote",      price: "$0.05 USDC", method: "POST" },
-      { name: "gigaverse", endpoint: "https://rocky-bot-3fyr.onrender.com/gigaverse", price: "$0.10 USDC", method: "POST" }
-    ]
-  });
-});
-
-app.get("/mcp", (req, res) => {
-  res.json({
-    schema_version: "v1",
-    name: "rocky",
-    display_name: "Rocky — Abstract Chain Agent",
-    description: "Autonomous AI agent on Abstract Chain. Trades $PENGU, plays Gigaverse dungeons, activates Moody AI Assistants, and votes for ecosystem apps.",
-    capabilities: [
-      { name: "grid_trading",    description: "Runs a grid bot trading PENGU/ETH on Abstract Chain. Buys at grid levels below base price, sells at levels above.", parameters: {} },
-      { name: "gigaverse_dungeon", description: "Plays daily Gigaverse dungeon runs using rock/paper/scissors moves until energy is depleted.", parameters: {} },
-      { name: "moody_assistants",  description: "Activates Moody AI Assistants daily.", parameters: {} },
-      { name: "ecosystem_voting",  description: "Casts a daily vote for an Abstract ecosystem app, rotating through 7 apps one per day of the week.", parameters: {} }
-    ],
-    agent: { id: 649, wallet: AGW_ADDRESS, chain: "abstract-mainnet", chainId: 2741 }
-  });
-});
-
-app.get("/session-setup.html", (req, res) => {
-  try {
-    res.send(readFileSync("./session-setup.html", "utf8"));
-  } catch { res.send("session-setup.html not found"); }
-});
-
-app.get("/", (req, res) => res.send("Rocky online 🐧"));
-
-app.listen(process.env.PORT || 3000);
+}).listen(process.env.PORT || 3000);
 
 setInterval(() => { fetch("https://rocky-bot-3fyr.onrender.com").catch(() => {}); }, 5 * 60 * 1000);
 
-// ── GRID BOT ──
 async function getPrice() {
   const res = await fetch(`https://api.dexscreener.com/latest/dex/pairs/abstract/${PAIR}`);
   if (!res.ok) throw new Error(`DexScreener HTTP ${res.status}`);
@@ -153,9 +90,7 @@ async function runGrid() {
     const ethBal = await publicClient.getBalance({ address: AGW_ADDRESS });
     const penguBal = await publicClient.readContract({ address: PENGU, abi: ERC20_ABI, functionName: "balanceOf", args: [AGW_ADDRESS] });
     log(`🐧 Grid | ETH: ${formatEther(ethBal)} | PENGU: ${(Number(penguBal)/1e18).toFixed(2)} | Price: $${price}`);
-
     if (!basePrice) { basePrice = price; grid = buildGrid(price); log(`Grid init at $${price}`); return; }
-
     for (const level of grid) {
       if (!level.filled && price <= level.buyPrice) {
         const ethFree = ethBal - ETH_RESERVE;
@@ -171,7 +106,6 @@ async function runGrid() {
         break;
       }
     }
-
     for (const level of grid) {
       if (level.filled && price >= level.sellPrice) {
         if (penguBal <= 0n) { log(`⛔ Sell blocked — no PENGU`); break; }
@@ -187,14 +121,12 @@ async function runGrid() {
         break;
       }
     }
-
     if (Math.abs(price - basePrice) / basePrice > 0.25) { basePrice = price; grid = buildGrid(price); log(`🔄 Grid reset at $${price}`); }
   } catch (err) {
     log(`❌ Grid error: ${err.shortMessage || err.message}`);
   }
 }
 
-// ── VOTE ──
 let lastVoteDate = null;
 async function doPersonalVote() {
   const today = new Date().toDateString();
@@ -209,25 +141,23 @@ async function doPersonalVote() {
   }
 }
 
-// ── SCHEDULES ──
-function scheduleAt(hour, label, fn) {
+function scheduleAt(hour, minute, label, fn) {
   const now = new Date();
   const argNow = new Date(now.toLocaleString("en-US", { timeZone: "America/Argentina/Buenos_Aires" }));
   const next = new Date(argNow);
-  next.setHours(hour, 0, 0, 0);
+  next.setHours(hour, minute, 0, 0);
   if (argNow >= next) next.setDate(next.getDate() + 1);
   const ms = next - argNow;
   log(`⏰ ${label} in ${Math.round(ms / 60000)} min`);
   setTimeout(() => { fn(); setInterval(fn, 24 * 60 * 60 * 1000); }, ms);
 }
 
-// ── START ── 2026-04-18
 log("🐧 Rocky is online — Abstract Chain, let's go!");
 log("Rocky agentId: 649");
 
 runGrid();
 setInterval(runGrid, 10 * 60 * 1000);
-scheduleAt(17, "Vote (17:00 ARG)", doPersonalVote);
-scheduleAt(17, "Gigaverse (17:00 ARG)", runGigaverseDungeon);
-scheduleAt(15, "Moody Wake Up (15:06 ARG)", activateAssistants);
-scheduleAt(15, "Moody Burns (15:05 ARG)", doMoodyAssistants);
+scheduleAt(15, 30, "Vote (15:30 ARG)", doPersonalVote);
+scheduleAt(15, 30, "Gigaverse (15:30 ARG)", runGigaverseDungeon);
+scheduleAt(15, 31, "Moody Wake Up (15:31 ARG)", activateAssistants);
+scheduleAt(15, 30, "Moody Burns (15:30 ARG)", doMoodyAssistants);
