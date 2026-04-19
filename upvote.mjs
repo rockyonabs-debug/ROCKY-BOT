@@ -11,8 +11,8 @@ const stored = JSON.parse(readFileSync(join(__dirname, "session-config.json"), "
 const sessionConfig = stored.session;
 const sessionSigner = privateKeyToAccount(process.env.ROCKY_PRIVATE_KEY || process.env.ROCKY_EOA_PRIVATE_KEY);
 
-// 7 apps rotando — una por día de la semana
-const APP_IDS = [39n, 213n, 222n, 15n, 150n, 223n, 207n];
+// 14 apps rotando — una por día de la semana
+const APP_IDS = [39n, 213n, 222n, 15n, 150n, 223n, 207n, 5n, 89n, 45n, 123n, 178n, 95n, 201n];
 
 // Intentar votar con fallback al siguiente si ya votamos hoy
 async function tryVote(appId) {
