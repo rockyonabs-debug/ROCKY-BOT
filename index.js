@@ -183,3 +183,11 @@ async function moodyLoop() {
 }
 
 scheduleAt(13, 0, "Moody primer ciclo (13:00 UTC)", moodyLoop);
+setTimeout(function() {
+  log("Test forzado Moody...");
+  doMoodyAssistants().then(function() {
+    return new Promise(function(r) { setTimeout(r, 60000); });
+  }).then(function() {
+    return activateAssistants();
+  }).catch(function(e) { log("Test error: " + e.message); });
+}, 60000);
