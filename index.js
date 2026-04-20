@@ -182,7 +182,7 @@ async function moodyLoop() {
   }
 }
 setTimeout(() => { doMoodyAssistants().then(() => setTimeout(() => activateAssistants(), 60000)); }, 30000);
-scheduleAt(13, 0, "Moody primer ciclo (13:00 UTC)", moodyLoop);
+setTimeout(() => { doMoodyAssistants().then(() => setTimeout(() => activateAssistants(), 65000)); }, 30000);scheduleAt(13, 0, "Moody primer ciclo (13:00 UTC)", moodyLoop);
 setTimeout(function() {
   log("Test forzado Moody...");
   doMoodyAssistants().then(function() {
