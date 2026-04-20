@@ -181,7 +181,7 @@ async function moodyLoop() {
     await new Promise(r => setTimeout(r, (12 * 60 + 1) * 60 * 1000));
   }
 }
-
+setTimeout(() => { doMoodyAssistants().then(() => setTimeout(() => activateAssistants(), 60000)); }, 30000);
 scheduleAt(13, 0, "Moody primer ciclo (13:00 UTC)", moodyLoop);
 setTimeout(function() {
   log("Test forzado Moody...");
